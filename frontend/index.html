@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lokale baseline-aanbevelingen voor een voetbal scouting-project."
+    >
+    <title>Football Scout Recommender</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">CLOUD &amp; OPS · MILESTONE 1</p>
+        <h1>Football Scout <span>Recommender</span></h1>
+        <p class="intro">
+          Een eerste lokale baseline voor spelersrekrutering. Elke speler krijgt
+          een rolscore op basis van de eigenschappen die bij zijn positie horen.
+          De score is voor elke club dezelfde: dit is nog geen gepersonaliseerde
+          aanbeveling.
+        </p>
+        <div class="baseline-note">
+          <span class="status-dot" aria-hidden="true"></span>
+          Baseline actief <span aria-hidden="true">·</span> niet gepersonaliseerd
+        </div>
+      </header>
+
+      <section class="results" aria-labelledby="results-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">AANBEVELINGEN</p>
+            <h2 id="results-heading">Scoutings-shortlist</h2>
+          </div>
+          <span id="result-count" class="result-count" aria-live="polite"></span>
+        </div>
+
+        <form id="filters" class="filters">
+          <label>
+            Positie
+            <select name="position">
+              <option value="">Alle posities</option>
+            </select>
+          </label>
+          <label>
+            Competitie
+            <select name="league">
+              <option value="">Alle competities</option>
+            </select>
+          </label>
+          <label>
+            Max. leeftijd
+            <input name="max_age" type="number" min="14" max="50" placeholder="bv. 23">
+          </label>
+          <label>
+            Max. marktwaarde (mln €)
+            <input name="max_market_value_millions" type="number" min="0" step="0.5" placeholder="bv. 5">
+          </label>
+          <label>
+            Min. minuten
+            <input name="min_minutes" type="number" min="0" step="100" placeholder="bv. 900">
+          </label>
+        </form>
+
+        <p id="message" class="message" role="status">Aanbevelingen laden…</p>
+        <div id="players" class="player-grid"></div>
+      </section>
+
+      <footer>
+        Seizoen 2025/2026 · eigenschappen: EA Sports FC 26 · marktwaarde en
+        seizoenscijfers: Transfermarkt
+      </footer>
+    </main>
+  </body>
+</html>

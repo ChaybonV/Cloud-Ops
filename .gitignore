@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+
+# Tussenresultaten van scripts/build_dataset.py
+backend/data/cache/
