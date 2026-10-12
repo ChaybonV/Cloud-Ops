@@ -7,6 +7,12 @@
 
 Een speler komt in de dataset als hij in beide bronnen staat met dezelfde
 naam en een passende leeftijd.
+
+Het script werkt in vier stappen (zie de functie main onderaan):
+1. De seizoenscijfers per speler optellen (Transfermarkt).
+2. De EA-spelers inlezen.
+3. Elke Transfermarkt-speler koppelen aan zijn EA-speler.
+4. Het resultaat wegschrijven naar data/players.json.
 """
 
 import csv
@@ -17,10 +23,10 @@ import socket
 import unicodedata
 import urllib.request
 import zipfile
-from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
+# De map backend/
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_FILE = ROOT / "data" / "players.json"
 CACHE_DIRECTORY = ROOT / "data" / "cache"
@@ -97,86 +103,160 @@ GOALKEEPER_ATTRIBUTES = {
     "Reactions": "reactions",
 }
 
+
+# --- Downloaden -------------------------------------------------------------
+
 # Op sommige netwerken werkt IPv6 niet en wacht Python daar minutenlang op.
-# Daarom proberen we IPv4-adressen eerst.
-_getaddrinfo = socket.getaddrinfo
-socket.getaddrinfo = lambda *args, **kwargs: sorted(
-    _getaddrinfo(*args, **kwargs), key=lambda address: address[0] != socket.AF_INET
-)
+# Daarom zetten we de IPv4-adressen vooraan, zodat die eerst geprobeerd worden.
+original_getaddrinfo = socket.getaddrinfo
+
+
+def getaddrinfo_ipv4_first(*args, **kwargs):
+    addresses = original_getaddrinfo(*args, **kwargs)
+    ipv4_addresses = []
+    other_addresses = []
+    for address in addresses:
+        if address[0] == socket.AF_INET:
+            ipv4_addresses.append(address)
+        else:
+            other_addresses.append(address)
+    return ipv4_addresses + other_addresses
+
+
+socket.getaddrinfo = getaddrinfo_ipv4_first
 
 
 def download(url, filename):
-    """Downloadt een bestand één keer naar data/cache en geeft het pad terug."""
+    """Downloadt een bestand naar data/cache en geeft het pad terug.
+
+    Staat het bestand er al, dan wordt het niet opnieuw gedownload.
+    """
     cache_file = CACHE_DIRECTORY / filename
     if not cache_file.exists():
-        print(f"{filename} downloaden...")
+        print(filename + " downloaden...")
         CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(url, timeout=60) as response:
-            cache_file.write_bytes(response.read())
+        response = urllib.request.urlopen(url, timeout=60)
+        cache_file.write_bytes(response.read())
+        response.close()
     return cache_file
 
 
-def read_transfermarkt(table):
-    path = download(f"{TRANSFERMARKT_URL}/{table}.csv.gz", f"transfermarkt_{table}.csv.gz")
-    with gzip.open(path, "rt", encoding="utf-8", newline="") as file:
-        yield from csv.DictReader(file)
+def open_transfermarkt(table):
+    """Opent een Transfermarkt-tabel (een gezipt CSV-bestand) om te lezen."""
+    url = TRANSFERMARKT_URL + "/" + table + ".csv.gz"
+    path = download(url, "transfermarkt_" + table + ".csv.gz")
+    return gzip.open(path, "rt", encoding="utf-8", newline="")
 
 
-def read_ea_players():
-    path = download(EA_URL, "ea_fc_26.zip")
-    with zipfile.ZipFile(path) as archive, archive.open(EA_FILE) as file:
-        yield from csv.DictReader(io.TextIOWrapper(file, encoding="utf-8-sig"))
+# --- Hulpfuncties -----------------------------------------------------------
 
 
 def normalise(name):
-    """'Kylian Mbappé' -> 'kylian mbappe', zodat schrijfwijzen overeenkomen."""
-    without_accents = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    return " ".join(without_accents.lower().replace("-", " ").split())
+    """Maakt van 'Kylian Mbappé' 'kylian mbappe', zodat schrijfwijzen overeenkomen."""
+    # Accenten losmaken van de letters en daarna weggooien: é -> e.
+    name = unicodedata.normalize("NFKD", name)
+    name = name.encode("ascii", "ignore").decode()
+    # Kleine letters, streepjes worden spaties, dubbele spaties verdwijnen.
+    name = name.lower().replace("-", " ")
+    words = name.split()
+    return " ".join(words)
 
 
 def age_on_reference_date(date_of_birth):
+    """Berekent de leeftijd op de peildatum uit een datum zoals '2001-05-17 00:00:00'."""
     born = date.fromisoformat(date_of_birth[:10])
-    had_birthday = (REFERENCE_DATE.month, REFERENCE_DATE.day) >= (born.month, born.day)
-    return REFERENCE_DATE.year - born.year - (not had_birthday)
+    age = REFERENCE_DATE.year - born.year
+    # Wie dat jaar nog niet verjaard is, is een jaar jonger.
+    if (born.month, born.day) > (REFERENCE_DATE.month, REFERENCE_DATE.day):
+        age = age - 1
+    return age
+
+
+# --- Stap 1: seizoenscijfers per speler -------------------------------------
 
 
 def load_season_totals():
-    """Telt per speler de competitiewedstrijden van het seizoen op."""
-    totals = defaultdict(lambda: {"matches": 0, "minutes": 0, "goals": 0, "assists": 0})
-    for row in read_transfermarkt("appearances"):
-        if row["competition_id"] in LEAGUES and SEASON_START <= row["date"] <= SEASON_END:
-            player = totals[row["player_id"]]
-            player["matches"] += 1
-            player["minutes"] += int(row["minutes_played"])
-            player["goals"] += int(row["goals"])
-            player["assists"] += int(row["assists"])
+    """Telt per speler de competitiewedstrijden van het seizoen op.
+
+    Geeft een dictionary terug: speler-id -> {matches, minutes, goals, assists}.
+    """
+    totals = {}
+    file = open_transfermarkt("appearances")
+    for row in csv.DictReader(file):
+        # Enkel wedstrijden uit onze competities en uit dit seizoen.
+        if row["competition_id"] not in LEAGUES:
+            continue
+        if row["date"] < SEASON_START or row["date"] > SEASON_END:
+            continue
+
+        player_id = row["player_id"]
+        if player_id not in totals:
+            totals[player_id] = {"matches": 0, "minutes": 0, "goals": 0, "assists": 0}
+
+        totals[player_id]["matches"] += 1
+        totals[player_id]["minutes"] += int(row["minutes_played"])
+        totals[player_id]["goals"] += int(row["goals"])
+        totals[player_id]["assists"] += int(row["assists"])
+    file.close()
     return totals
 
 
+# --- Stap 2: EA-spelers inlezen ---------------------------------------------
+
+
 def load_ea_players_by_name():
-    by_name = defaultdict(list)
-    for row in read_ea_players():
-        if row["Position"] in POSITION_GROUPS:
-            by_name[normalise(row["Name"])].append(row)
+    """Leest de EA-spelers in.
+
+    Geeft een dictionary terug: genormaliseerde naam -> lijst van EA-spelers
+    met die naam (meestal één, soms meerdere).
+    """
+    path = download(EA_URL, "ea_fc_26.zip")
+    archive = zipfile.ZipFile(path)
+    file = io.TextIOWrapper(archive.open(EA_FILE), encoding="utf-8-sig")
+
+    by_name = {}
+    for row in csv.DictReader(file):
+        if row["Position"] not in POSITION_GROUPS:
+            continue
+        name = normalise(row["Name"])
+        if name not in by_name:
+            by_name[name] = []
+        by_name[name].append(row)
+
+    archive.close()
     return by_name
 
 
+# --- Stap 3: koppelen -------------------------------------------------------
+
+
 def find_ea_player(ea_players_by_name, name, age):
-    """Zoekt de EA-speler met dezelfde naam; None als er geen of meerdere zijn."""
-    # De EA-leeftijd dateert van de start van het seizoen: even oud of een jaar jonger.
-    candidates = [
-        row
-        for row in ea_players_by_name.get(normalise(name), [])
-        if age - int(row["Age"]) in (0, 1)
-    ]
-    return candidates[0] if len(candidates) == 1 else None
+    """Zoekt de EA-speler met dezelfde naam en een passende leeftijd.
+
+    Geeft None terug als er geen is, of als er meerdere zijn (dan weten we
+    niet welke de juiste is).
+    """
+    same_name = ea_players_by_name.get(normalise(name), [])
+
+    candidates = []
+    for row in same_name:
+        # De EA-leeftijd dateert van de start van het seizoen: de speler is
+        # daar even oud of een jaar jonger dan op onze peildatum.
+        difference = age - int(row["Age"])
+        if difference == 0 or difference == 1:
+            candidates.append(row)
+
+    if len(candidates) == 1:
+        return candidates[0]
+    return None
 
 
 def build_record(profile, totals, ea_player, age):
+    """Maakt het record van één speler zoals het in players.json komt."""
     position = POSITION_GROUPS[ea_player["Position"]]
-    columns = GOALKEEPER_ATTRIBUTES if position == "GK" else ATTRIBUTES
-    return {
-        "id": f"tm-{profile['player_id']}",
+
+    record = {
+        "id": "tm-" + profile["player_id"],
         "name": profile["name"],
         "club": profile["current_club_name"],
         "league": LEAGUES[profile["current_club_domestic_competition_id"]],
@@ -184,9 +264,51 @@ def build_record(profile, totals, ea_player, age):
         "position": position,
         "age": age,
         "market_value_eur": int(float(profile["market_value_in_eur"])),
-        **totals,
-        **{attribute: int(ea_player[column]) for column, attribute in columns.items()},
+        "matches": totals["matches"],
+        "minutes": totals["minutes"],
+        "goals": totals["goals"],
+        "assists": totals["assists"],
     }
+
+    # De eigenschappen uit EA toevoegen. Doelmannen hebben andere kolommen.
+    if position == "GK":
+        columns = GOALKEEPER_ATTRIBUTES
+    else:
+        columns = ATTRIBUTES
+    for column in columns:
+        attribute = columns[column]
+        record[attribute] = int(ea_player[column])
+
+    return record
+
+
+# --- Stap 4: wegschrijven ---------------------------------------------------
+
+
+def write_dataset(records):
+    """Schrijft de spelers naar data/players.json, één speler per regel."""
+    meta = {
+        "season": SEASON,
+        "sources": ["EA Sports FC 26 (eigenschappen)", "Transfermarkt (waarde en seizoen)"],
+        "player_count": len(records),
+    }
+
+    # "w" overschrijft het bestand: de oude inhoud verdwijnt.
+    file = open(OUTPUT_FILE, "w", encoding="utf-8", newline="\n")
+    file.write("{\n")
+    file.write('"meta": ' + json.dumps(meta, ensure_ascii=False) + ",\n")
+    file.write('"players": [\n')
+    number = 0
+    for record in records:
+        number = number + 1
+        line = json.dumps(record, ensure_ascii=False)
+        # Na elke speler komt een komma, behalve na de laatste.
+        if number < len(records):
+            line = line + ","
+        file.write(line + "\n")
+    file.write("]\n")
+    file.write("}\n")
+    file.close()
 
 
 def main():
@@ -195,34 +317,26 @@ def main():
 
     records = []
     candidates = 0
-    for profile in read_transfermarkt("players"):
-        in_scope = (
-            profile["player_id"] in totals
-            and profile["current_club_domestic_competition_id"] in LEAGUES
-            and profile["market_value_in_eur"]
-            and profile["date_of_birth"]
-        )
-        if not in_scope:
-            continue
-        candidates += 1
+    file = open_transfermarkt("players")
+    for profile in csv.DictReader(file):
+        # Sla spelers over die we niet kunnen gebruiken.
+        if profile["player_id"] not in totals:
+            continue  # speelde dit seizoen niet in onze competities
+        if profile["current_club_domestic_competition_id"] not in LEAGUES:
+            continue  # speelt nu bij een club buiten onze competities
+        if profile["market_value_in_eur"] == "" or profile["date_of_birth"] == "":
+            continue  # marktwaarde of geboortedatum ontbreekt
+        candidates = candidates + 1
+
         age = age_on_reference_date(profile["date_of_birth"])
         ea_player = find_ea_player(ea_players_by_name, profile["name"], age)
         if ea_player is not None:
-            records.append(build_record(profile, totals[profile["player_id"]], ea_player, age))
+            player_totals = totals[profile["player_id"]]
+            records.append(build_record(profile, player_totals, ea_player, age))
+    file.close()
 
-    meta = {
-        "season": SEASON,
-        "sources": ["EA Sports FC 26 (eigenschappen)", "Transfermarkt (waarde en seizoen)"],
-        "player_count": len(records),
-    }
-    # Eén speler per regel houdt het bestand leesbaar.
-    lines = ",\n".join(json.dumps(record, ensure_ascii=False) for record in records)
-    OUTPUT_FILE.write_text(
-        f'{{\n"meta": {json.dumps(meta, ensure_ascii=False)},\n"players": [\n{lines}\n]\n}}\n',
-        encoding="utf-8",
-        newline="\n",
-    )
-    print(f"{len(records)} van {candidates} spelers gekoppeld en weggeschreven")
+    write_dataset(records)
+    print(str(len(records)) + " van " + str(candidates) + " spelers gekoppeld en weggeschreven")
 
 
 if __name__ == "__main__":
