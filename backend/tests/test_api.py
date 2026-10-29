@@ -1,3 +1,13 @@
+# -------------------------
+# Tests voor de API (main.py), met de echte dataset.
+#
+# pytest voert elke functie uit waarvan de naam begint met "test_".
+# "assert" betekent: controleer dat dit klopt. Klopt het niet, dan faalt de test.
+# Bv. "assert result["count"] == 10" -> het aantal moet 10 zijn.
+#
+# Uitvoeren in de map backend:  python -m pytest
+# -------------------------
+
 from fastapi.testclient import TestClient
 
 from app.main import app

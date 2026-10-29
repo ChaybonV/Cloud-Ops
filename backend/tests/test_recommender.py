@@ -1,3 +1,13 @@
+# -------------------------
+# Tests voor de logica (recommender.py), met zelfgemaakte testspelers.
+#
+# pytest voert elke functie uit waarvan de naam begint met "test_".
+# "assert" betekent: controleer dat dit klopt. Klopt het niet, dan faalt de test.
+# Bv. "assert result["count"] == 10" -> het aantal moet 10 zijn.
+#
+# Uitvoeren in de map backend:  python -m pytest
+# -------------------------
+
 from app.positions import ATTRIBUTE_LABELS, POSITION_LABELS, ROLE_PROFILES
 from app.recommender import recommend, role_score
 
