@@ -60,7 +60,9 @@ def test_elke_positie_heeft_een_rolprofiel_met_totaalgewicht_1():
 
 
 def test_rangschikt_op_rolscore():
-    results, total = recommend(PLAYERS)
+    result = recommend(PLAYERS)
+    results = result["recommendations"]
+    total = result["total_matching"]
 
     assert get_ids(results) == ["st-top", "cb-top", "st-sub", "st-weak"]
     assert total == 4
@@ -70,32 +72,34 @@ def test_rangschikt_op_rolscore():
 
 
 def test_filtert_op_positie():
-    results, total = recommend(PLAYERS, position="CB")
+    results = recommend(PLAYERS, position="CB")["recommendations"]
     assert get_ids(results) == ["cb-top"]
 
 
 def test_filtert_op_competitie():
-    results, total = recommend(PLAYERS, league="Andere liga")
+    results = recommend(PLAYERS, league="Andere liga")["recommendations"]
     assert get_ids(results) == ["cb-top"]
 
 
 def test_filtert_op_leeftijd():
-    results, total = recommend(PLAYERS, max_age=21)
+    results = recommend(PLAYERS, max_age=21)["recommendations"]
     assert get_ids(results) == ["st-weak"]
 
 
 def test_filtert_op_marktwaarde():
-    results, total = recommend(PLAYERS, max_market_value=1_500_000)
+    results = recommend(PLAYERS, max_market_value=1_500_000)["recommendations"]
     assert get_ids(results) == ["st-weak"]
 
 
 def test_filtert_op_minuten():
-    results, total = recommend(PLAYERS, min_minutes=900)
+    results = recommend(PLAYERS, min_minutes=900)["recommendations"]
     assert "st-sub" not in get_ids(results)
 
 
 def test_limit_beperkt_de_lijst_maar_niet_het_totaal():
-    results, total = recommend(PLAYERS, limit=2)
+    result = recommend(PLAYERS, limit=2)
+    results = result["recommendations"]
+    total = result["total_matching"]
 
     assert get_ids(results) == ["st-top", "cb-top"]
     assert total == 4

@@ -1,19 +1,29 @@
+// -------------------------
+// Instellingen
+// -------------------------
+
 // Het adres van de API (de backend-container).
 const API_URL = "http://localhost:8000";
 
-// De elementen uit index.html die we nodig hebben.
+// -------------------------
+// Elementen uit index.html
+// -------------------------
+
 const playerGrid = document.querySelector("#players");
 const message = document.querySelector("#message");
 const resultCount = document.querySelector("#result-count");
 const filters = document.querySelector("#filters");
 
-// Zet een bedrag om naar een korte notatie, bv. 5000000 -> "€ 5 mln.".
-const euroFormatter = new Intl.NumberFormat("nl-BE", {
-  style: "currency",
-  currency: "EUR",
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+// De velden van de filters.
+const positionSelect = document.querySelector("#position");
+const leagueSelect = document.querySelector("#league");
+const maxAgeInput = document.querySelector("#max-age");
+const maxValueInput = document.querySelector("#max-value");
+const minMinutesInput = document.querySelector("#min-minutes");
+
+// -------------------------
+// Hulpfuncties
+// -------------------------
 
 // Maakt een HTML-element met tekst en hangt het aan een ander element.
 function addTextElement(parent, tagName, className, text) {
@@ -32,6 +42,26 @@ function addDetail(details, label, value) {
   details.append(detail);
 }
 
+// Toont een bedrag kort: 5000000 -> "€ 5.0 mln", 750000 -> "€ 750 k".
+function formatMarketValue(euros) {
+  if (euros >= 1000000) {
+    return "€ " + (euros / 1000000).toFixed(1) + " mln";
+  }
+  return "€ " + Math.round(euros / 1000) + " k";
+}
+
+// Voegt een keuze toe aan een keuzelijst (<select>).
+function addOption(select, value, text) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = text;
+  select.append(option);
+}
+
+// -------------------------
+// Een spelerskaart maken
+// -------------------------
+
 // Maakt de balkjes die tonen hoe de rolscore is opgebouwd.
 function renderBreakdown(player) {
   const list = document.createElement("ul");
@@ -40,9 +70,12 @@ function renderBreakdown(player) {
   for (const item of player.score_breakdown) {
     const row = document.createElement("li");
     addTextElement(row, "span", "breakdown-label", item.label);
+
+    // Een grijs balkje met een groen deel: hoe breder, hoe beter (0-100).
     const bar = addTextElement(row, "span", "breakdown-bar", "");
-    // De breedte van het balkje staat in de CSS-variabele --value.
-    bar.style.setProperty("--value", item.value + "%");
+    const fill = addTextElement(bar, "span", "breakdown-fill", "");
+    fill.style.width = item.value + "%";
+
     addTextElement(row, "span", "breakdown-value", item.value);
     list.append(row);
   }
@@ -56,9 +89,13 @@ function renderPlayer(player, rank) {
   card.className = "player-card";
 
   // Bovenaan: het rangnummer (01, 02, ...) en de positie.
+  let rankText = String(rank);
+  if (rank < 10) {
+    rankText = "0" + rank;
+  }
   const cardTop = document.createElement("div");
   cardTop.className = "card-top";
-  addTextElement(cardTop, "span", "rank", String(rank).padStart(2, "0"));
+  addTextElement(cardTop, "span", "rank", rankText);
   addTextElement(cardTop, "span", "position", player.position_label);
   card.append(cardTop);
 
@@ -69,7 +106,7 @@ function renderPlayer(player, rank) {
   details.className = "player-details";
   addDetail(details, "Rolscore", player.score.toFixed(1) + " / 100");
   addDetail(details, "Leeftijd", player.age + " jaar");
-  addDetail(details, "Marktwaarde", euroFormatter.format(player.market_value_eur));
+  addDetail(details, "Marktwaarde", formatMarketValue(player.market_value_eur));
   addDetail(
     details,
     "Seizoen",
@@ -83,41 +120,44 @@ function renderPlayer(player, rank) {
   return card;
 }
 
+// -------------------------
+// De API aanroepen
+// -------------------------
+
 // Bouwt de URL voor de API op basis van de ingevulde filters.
+// Een leeg veld betekent: niet filteren.
 function buildUrl() {
-  const form = new FormData(filters);
   let url = API_URL + "/api/recommendations?limit=12";
 
-  // Deze filters gaan ongewijzigd naar de API, als ze ingevuld zijn.
-  const names = ["position", "league", "max_age", "min_minutes"];
-  for (const name of names) {
-    const value = form.get(name);
-    if (value !== "") {
-      url = url + "&" + name + "=" + encodeURIComponent(value);
-    }
+  if (positionSelect.value !== "") {
+    url = url + "&position=" + positionSelect.value;
   }
-
-  // De marktwaarde wordt ingevuld in miljoen euro, de API verwacht euro.
-  const millions = form.get("max_market_value_millions");
-  if (millions !== "") {
-    const euros = Math.round(Number(millions) * 1000000);
+  if (leagueSelect.value !== "") {
+    // encodeURIComponent maakt spaties en tekens zoals ü veilig voor een URL.
+    url = url + "&league=" + encodeURIComponent(leagueSelect.value);
+  }
+  if (maxAgeInput.value !== "") {
+    url = url + "&max_age=" + maxAgeInput.value;
+  }
+  if (maxValueInput.value !== "") {
+    // Je vult de marktwaarde in miljoen euro in; de API verwacht euro.
+    const euros = Math.round(Number(maxValueInput.value) * 1000000);
     url = url + "&max_market_value=" + euros;
+  }
+  if (minMinutesInput.value !== "") {
+    url = url + "&min_minutes=" + minMinutesInput.value;
   }
 
   return url;
 }
 
-// Haalt gegevens op van de API. Bij een fout gooien we de foutmelding op.
+// Haalt gegevens op van de API. Gaat het mis, dan geven we de foutmelding door.
 async function fetchJson(url) {
   const response = await fetch(url);
   const result = await response.json();
 
   if (!response.ok) {
-    let errorText = "Verzoek mislukt (" + response.status + ").";
-    if (typeof result.detail === "string") {
-      errorText = result.detail;
-    }
-    throw new Error(errorText);
+    throw new Error(result.detail);
   }
 
   return result;
@@ -129,7 +169,7 @@ async function loadRecommendations() {
     const result = await fetchJson(buildUrl());
 
     // Oude kaarten weghalen en de nieuwe toevoegen.
-    playerGrid.replaceChildren();
+    playerGrid.innerHTML = "";
     let rank = 1;
     for (const player of result.recommendations) {
       playerGrid.append(renderPlayer(player, rank));
@@ -146,7 +186,7 @@ async function loadRecommendations() {
       message.classList.add("is-hidden");
     }
   } catch (error) {
-    playerGrid.replaceChildren();
+    playerGrid.innerHTML = "";
     resultCount.textContent = "";
     message.textContent = "Aanbevelingen konden niet worden geladen: " + error.message;
     message.classList.remove("is-hidden");
@@ -157,15 +197,20 @@ async function loadRecommendations() {
 async function loadFilterOptions() {
   const options = await fetchJson(API_URL + "/api/options");
 
+  // options.positions is een object, bv. { "GK": "Doelman", "CB": ... }
   for (const code in options.positions) {
-    const label = options.positions[code];
-    filters.elements.position.add(new Option(label, code));
+    addOption(positionSelect, code, options.positions[code]);
   }
 
+  // options.leagues is een lijst, bv. ["Bundesliga", "Eredivisie", ...]
   for (const league of options.leagues) {
-    filters.elements.league.add(new Option(league, league));
+    addOption(leagueSelect, league, league);
   }
 }
+
+// -------------------------
+// Starten
+// -------------------------
 
 // Bij elke wijziging van een filter halen we nieuwe aanbevelingen op.
 filters.addEventListener("input", loadRecommendations);

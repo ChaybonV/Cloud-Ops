@@ -52,16 +52,14 @@ def recommendations(
     if limit < 1 or limit > MAX_LIMIT:
         raise HTTPException(422, "limit moet tussen 1 en " + str(MAX_LIMIT) + " liggen.")
 
-    results, total = recommend(
-        players, position, league, max_age, max_market_value, min_minutes, limit
-    )
+    result = recommend(players, position, league, max_age, max_market_value, min_minutes, limit)
 
     return {
         "strategy": "role_score_baseline",
         "personalized": False,
-        "total_matching": total,
-        "count": len(results),
-        "recommendations": results,
+        "total_matching": result["total_matching"],
+        "count": len(result["recommendations"]),
+        "recommendations": result["recommendations"],
     }
 
 

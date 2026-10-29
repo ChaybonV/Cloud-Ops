@@ -51,7 +51,7 @@ kostte.
 | 11/10/2026 | Baseline afwerken | Overgestapt naar Python en FastAPI, echte data gezocht en gekoppeld, rolscore per positie, filters, tests, README, indeling in `backend/` en `frontend/` | 5 uren en 30 minuten |
 | 15/10/2026 | Milestone 1 indienen | demo gegeven aan de docent | 20 minuten |
 | 20/10/2026 | Start milestone 2: containers en CI | Branch `milestone-2`, een Dockerfile voor backend en frontend, `.dockerignore`, `docker-compose.yml`, `.env.example`, GitHub Actions-workflow, CORS in de backend, README aangepast | 6 uren en 15 minuten |
-| 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser | 1 uren en 20 minuten |
+| 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser. Code verder vereenvoudigd: het datascript is een ETL met pandas die de bronbestanden uit `data/bronnen/` leest, `recommend` geeft één dictionary terug, het dashboard leest de filters met `document.querySelector` | 2 uren en 30 minuten |
 
 ## 4. Technische keuzes
 
@@ -69,7 +69,10 @@ kostte.
 | Het dashboard roept de API rechtstreeks aan op poort 8000 (`API_URL` in `app.js`), met CORS in de backend | nginx die `/api/` doorstuurt naar de backend | Eén regel in `app.js` en één regel in `main.py`. Een browser blokkeert verzoeken naar een ander adres, tenzij de API met CORS zegt dat het mag. |
 | `docker-compose.yml` | Elke container apart starten met `docker build` en `docker run` | Eén kort commando (`docker compose up --build`) start beide containers in de juiste volgorde, en compose leest de instellingen uit `.env`. |
 | `python:3.13-slim` als basis voor beide containers | Volledige Python-image | Kleiner: sneller te bouwen en straks goedkoper om naar Azure te sturen. Een vaste versie (3.13) zorgt dat de build later hetzelfde resultaat geeft. |
-| `.dockerignore` in de backend | Alles kopiëren | De gedownloade bronbestanden (55 MB), de tests en het datascript zijn niet nodig om de API te laten draaien. |
+| `.dockerignore` in de backend | Alles kopiëren | De bronbestanden (60 MB), de tests en het datascript zijn niet nodig om de API te laten draaien. |
+| Het datascript als ETL met pandas (Extract, Transform, Load) | Zelf lussen schrijven over de CSV-bestanden | Zo heb ik het geleerd in Data Engineering en Data Science Fundamentals: `read_csv`, filteren, `groupby` om op te tellen en `merge` om de twee bronnen te koppelen. pandas is alleen nodig voor het script, niet voor de app zelf. |
+| Het datascript leest de bronbestanden uit een map (`data/bronnen/`) in plaats van ze zelf te downloaden | Automatisch downloaden in het script | Ik bewaar de bronbestanden zelf, zodat het project blijft werken als de downloadlinks verdwijnen. Zonder downloadcode is het script ook veel korter en eenvoudiger: alleen inlezen, koppelen en wegschrijven. |
+| Code zo schrijven dat ze lijkt op wat ik in JavaScript en C# gezien heb | Typische Python-schrijfwijzen | Python is niet de taal die ik in de lessen het meest gebruik. Zo kan ik elke regel uitleggen. Bv. `recommend` geeft één dictionary terug in plaats van twee waarden tegelijk, en het dashboard leest de filters met `document.querySelector`. |
 | De poort van het dashboard in `.env`, met een standaardwaarde in `docker-compose.yml` | `.env` verplicht maken | `git clone` plus één commando moet volstaan, ook zonder `.env`. Wie een andere poort nodig heeft, past ze aan in `.env`. Er zijn nog geen geheime sleutels: lokaal bouwen en de pipeline hebben er geen nodig. De eerste komen in Milestone 3 (toegang tot Azure, als GitHub-secret) en Milestone 4 (sleutel van de AI-agent, in `.env`). |
 | GitHub Actions bij elke push op elke branch | Alleen op `main` | De opdracht vraagt een build bij elke push. Zo wordt ook het werk op `milestone-2` gecontroleerd voor het naar `main` gaat. |
 
@@ -128,7 +131,7 @@ en geen personalisatie per club is.
 |---|---|
 | De eerste baseline (doelpunten en assists) zette doelmannen en verdedigers altijd onderaan. | Rolprofiel per positie. |
 | Geen enkele gratis bron had tegelijk actuele data, marktwaarde en individuele cijfers voor elke positie. | Twee bronnen combineren (zie punt 4). |
-| Het downloaden van de bronbestanden vanuit Python bleef minutenlang hangen. | Het netwerk ondersteunt geen IPv6 en Python probeerde die adressen eerst. Het script probeert nu IPv4 eerst. |
+| Het downloaden van de bronbestanden vanuit Python bleef minutenlang hangen. | Het netwerk ondersteunt geen IPv6 en Python probeerde die adressen eerst. Opgelost met een aanpassing in het script; in Milestone 2 is het downloaden helemaal uit het script gehaald (zie punt 4). |
 | Namen zijn in de twee bronnen soms anders gespeld. | Namen worden vergeleken zonder accenten en hoofdletters, samen met de leeftijd. Een ruimere regel gaf foute koppelingen en is niet gebruikt. |
 | Bij doelmannen staan de keeperseigenschappen in het EA-bestand in andere kolommen. | Aparte kolomtoewijzing voor doelmannen in het script. |
 

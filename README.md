@@ -132,6 +132,7 @@ backend/
     positions.py       posities en rolprofielen
     players.py         inladen van de data
   data/players.json    dataset: één speler per regel
+  data/bronnen/        bronbestanden voor het script (niet op GitHub)
   scripts/
     build_dataset.py   bouwt data/players.json opnieuw op
   tests/
@@ -177,8 +178,22 @@ De twee bronnen worden gekoppeld op naam en leeftijd. Dat lukt voor 4.244 van
 de 5.855 spelers. Wie in de twee bronnen anders gespeld is (bv. Vinicius
 Junior) ontbreekt.
 
-De dataset opnieuw opbouwen (in de map `backend`, downloadt ongeveer 50 MB):
+### De dataset opnieuw opbouwen
+
+Dat is alleen nodig als je de data wil aanpassen. De app gebruikt gewoon
+`players.json`. Het script heeft deze bronbestanden nodig in
+`backend/data/bronnen/` (samen 60 MB, daarom staan ze niet op GitHub):
+
+| Bestand | Waar te halen |
+|---|---|
+| `ea_fc_26_players.csv` | Uit de zip op [Kaggle](https://www.kaggle.com/datasets/talhademirezen/fc-26-player-stats) (`fc_26_players_stats.csv`, hernoemd) |
+| `transfermarkt_players.csv.gz` | [players.csv.gz](https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/players.csv.gz) |
+| `transfermarkt_appearances.csv.gz` | [appearances.csv.gz](https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/appearances.csv.gz) |
+
+Het script is een ETL in drie stappen (Extract, Transform, Load) met pandas.
+Daarna, in de map `backend`:
 
 ```sh
+pip install pandas
 python scripts/build_dataset.py
 ```

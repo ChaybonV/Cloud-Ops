@@ -74,8 +74,8 @@ def recommend(
     """Baseline: filter de spelers en rangschik ze op rolscore.
 
     De score is voor elke gebruiker dezelfde; er is nog geen personalisatie.
-    Geeft twee dingen terug: de aanbevelingen en het aantal spelers dat aan de
-    filters voldoet.
+    Geeft een dictionary terug met de aanbevelingen en het aantal spelers dat
+    aan de filters voldoet.
     """
     # Stap 1: hou enkel de spelers over die aan de filters voldoen.
     candidates = []
@@ -98,4 +98,7 @@ def recommend(
         result["score_breakdown"] = score_breakdown(player)
         recommendations.append(result)
 
-    return recommendations, len(candidates)
+    return {
+        "total_matching": len(candidates),
+        "recommendations": recommendations,
+    }

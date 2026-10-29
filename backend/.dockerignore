@@ -1,7 +1,7 @@
 # Deze bestanden en mappen gaan niet mee in de backend-container.
 
-# Gedownloade bronbestanden (55 MB), alleen nodig om de dataset opnieuw te bouwen
-data/cache
+# Bronbestanden (60 MB), alleen nodig om de dataset opnieuw te bouwen
+data/bronnen
 
 # Niet nodig om de API te laten draaien
 scripts
