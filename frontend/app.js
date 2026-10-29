@@ -1,3 +1,6 @@
+// Het adres van de API (de backend-container).
+const API_URL = "http://localhost:8000";
+
 // De elementen uit index.html die we nodig hebben.
 const playerGrid = document.querySelector("#players");
 const message = document.querySelector("#message");
@@ -83,7 +86,7 @@ function renderPlayer(player, rank) {
 // Bouwt de URL voor de API op basis van de ingevulde filters.
 function buildUrl() {
   const form = new FormData(filters);
-  let url = "/api/recommendations?limit=12";
+  let url = API_URL + "/api/recommendations?limit=12";
 
   // Deze filters gaan ongewijzigd naar de API, als ze ingevuld zijn.
   const names = ["position", "league", "max_age", "min_minutes"];
@@ -152,7 +155,7 @@ async function loadRecommendations() {
 
 // Vult de keuzelijsten voor positie en competitie.
 async function loadFilterOptions() {
-  const options = await fetchJson("/api/options");
+  const options = await fetchJson(API_URL + "/api/options");
 
   for (const code in options.positions) {
     const label = options.positions[code];

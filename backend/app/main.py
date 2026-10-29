@@ -1,19 +1,20 @@
-from pathlib import Path
-
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.players import load_players
 from app.positions import POSITION_LABELS
 from app.recommender import DEFAULT_LIMIT, MAX_LIMIT, recommend
 
-# De map frontend/ staat naast backend/ in de repository.
-FRONTEND_DIRECTORY = Path(__file__).resolve().parent.parent.parent / "frontend"
-
 app = FastAPI(
     title="Football Scout Recommender",
     description="Baseline-aanbevelingen voor spelersrekrutering.",
 )
+
+# Het dashboard draait in een eigen container, op een ander adres (poort 8080).
+# Een browser blokkeert standaard verzoeken naar een ander adres. Met CORS
+# zegt de API dat het mag. "*" betekent: vanaf elk adres. Dat is hier geen
+# probleem, want de API geeft alleen openbare gegevens en laat enkel lezen toe.
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 # De data wordt één keer ingeladen bij het opstarten.
 players = load_players()
@@ -69,7 +70,3 @@ def options():
     """Geeft de keuzes voor de filters: posities en competities."""
     return {"positions": POSITION_LABELS, "leagues": leagues}
 
-
-# Alles wat geen API-route is, komt uit de map met het dashboard.
-# Deze regel moet onderaan staan, anders vangt hij ook de API-routes op.
-app.mount("/", StaticFiles(directory=FRONTEND_DIRECTORY, html=True), name="frontend")

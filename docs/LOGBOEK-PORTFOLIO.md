@@ -18,8 +18,8 @@ Saint-Gilloise dient als voorbeeldclub.
 | Milestone | Deadline | Wat moet er werken | Status |
 |---|---|---|---|
 | Voorstel | 30/09/2026 | Cloudplatform en onderwerp gekozen | Ingediend en goedgekeurd |
-| 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Code klaar |
-| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Nog te doen |
+| 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Ingediend, demo gegeven |
+| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Bezig |
 | 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Nog te doen |
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
@@ -28,7 +28,8 @@ Geplande aanpak per milestone:
 
 - **Milestone 2:** `backend/` en `frontend/` krijgen elk een Dockerfile met
   een `docker-compose.yml` erboven. De bestaande tests draaien in GitHub
-  Actions.
+  Actions. Werk gebeurt op de branch `milestone-2` en gaat via een pull
+  request naar `main`.
 - **Milestone 3:** dezelfde containers gaan naar Azure. De pipeline wordt
   uitgebreid zodat een push naar `main` automatisch deployt. Budgetalert
   instellen.
@@ -48,7 +49,9 @@ kostte.
 | 05/10/2026 | Repository opzetten | GitHub-repository aangemaakt met README | 10 minuten |
 | 08/10/2026 | Eerste baseline | Eerste versie in Node.js: 12 voorbeeldspelers, rangschikking op doelpunten en assists per wedstrijd | 2 uren en 30 minuten |
 | 11/10/2026 | Baseline afwerken | Overgestapt naar Python en FastAPI, echte data gezocht en gekoppeld, rolscore per positie, filters, tests, README, indeling in `backend/` en `frontend/` | 5 uren en 30 minuten |
-| _in te vullen_ | Milestone 1 indienen | _in te vullen_ | _in te vullen_ |
+| 15/10/2026 | Milestone 1 indienen | demo gegeven aan de docent | 20 minuten |
+| 20/10/2026 | Start milestone 2: containers en CI | Branch `milestone-2`, een Dockerfile voor backend en frontend, `.dockerignore`, `docker-compose.yml`, `.env.example`, GitHub Actions-workflow, CORS in de backend, README aangepast | 6 uren en 15 minuten |
+| 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser | 1 uren en 20 minuten |
 
 ## 4. Technische keuzes
 
@@ -61,6 +64,14 @@ kostte.
 | Rolscore als gewogen gemiddelde per positie | Eén score voor iedereen (bv. doelpunten en assists) | De eerste versie beoordeelde alleen aanvallers eerlijk. Met een rolprofiel per positie telt voor elke rol wat daar belangrijk is. De gewichten staan apart in `positions.py`, zodat ze in Milestone 4 per club kunnen verschillen. |
 | Filters als queryparameters op één endpoint | Aparte endpoints per filter | De AI-agent kan later hetzelfde endpoint aanroepen met de filters die hij uit een zin haalt. |
 | Indeling in `backend/` en `frontend/` | Alles in één map | Elk deel wordt in Milestone 2 een eigen container. |
+| Twee containers: `backend` en `frontend` (Milestone 2) | Eén container die alles doet | De opdracht vraagt de app op te splitsen in logische componenten. Zo heeft elk deel zijn eigen Dockerfile, net zoals in het DevOps-vak. Beide staan in één repository en `docker-compose.yml` start ze samen. |
+| De ingebouwde webserver van Python (`python -m http.server`) voor de frontend | nginx | Een eerste versie gebruikte nginx. Dat was nieuw voor mij en maakte het geheel moeilijker uit te leggen. De webserver van Python serveert de bestanden met één commando, met een taal die ik al ken. |
+| Het dashboard roept de API rechtstreeks aan op poort 8000 (`API_URL` in `app.js`), met CORS in de backend | nginx die `/api/` doorstuurt naar de backend | Eén regel in `app.js` en één regel in `main.py`. Een browser blokkeert verzoeken naar een ander adres, tenzij de API met CORS zegt dat het mag. |
+| `docker-compose.yml` | Elke container apart starten met `docker build` en `docker run` | Eén kort commando (`docker compose up --build`) start beide containers in de juiste volgorde, en compose leest de instellingen uit `.env`. |
+| `python:3.13-slim` als basis voor beide containers | Volledige Python-image | Kleiner: sneller te bouwen en straks goedkoper om naar Azure te sturen. Een vaste versie (3.13) zorgt dat de build later hetzelfde resultaat geeft. |
+| `.dockerignore` in de backend | Alles kopiëren | De gedownloade bronbestanden (55 MB), de tests en het datascript zijn niet nodig om de API te laten draaien. |
+| De poort van het dashboard in `.env`, met een standaardwaarde in `docker-compose.yml` | `.env` verplicht maken | `git clone` plus één commando moet volstaan, ook zonder `.env`. Wie een andere poort nodig heeft, past ze aan in `.env`. Er zijn nog geen geheime sleutels: lokaal bouwen en de pipeline hebben er geen nodig. De eerste komen in Milestone 3 (toegang tot Azure, als GitHub-secret) en Milestone 4 (sleutel van de AI-agent, in `.env`). |
+| GitHub Actions bij elke push op elke branch | Alleen op `main` | De opdracht vraagt een build bij elke push. Zo wordt ook het werk op `milestone-2` gecontroleerd voor het naar `main` gaat. |
 
 ### De keuze van de data
 
@@ -123,7 +134,19 @@ en geen personalisatie per club is.
 
 ### Milestone 2
 
-_in te vullen: wat vond ik moeilijk, wat ging vlot, welke problemen waren er?_
+**Wat vond ik moeilijk?**
+_in te vullen_
+
+**Wat ging vlot?**
+_in te vullen_
+
+**Technische problemen en hoe ze opgelost zijn:**
+
+| Probleem | Oplossing |
+|---|---|
+| Een eerste versie gebruikte nginx als webserver voor het dashboard en om `/api/` door te sturen. Dat was nieuw voor mij en maakte het geheel moeilijker uit te leggen. | nginx vervangen door de ingebouwde webserver van Python; het dashboard roept de API rechtstreeks aan. |
+| In Milestone 1 serveerde de backend ook het dashboard. In een aparte container kan dat niet meer. | De backend serveert alleen nog de API; het dashboard heeft een eigen container. |
+| Het dashboard en de API draaien op een ander adres (poort 8080 en 8000). Een browser blokkeert dan standaard de verzoeken van het dashboard naar de API. | CORS ingesteld in de backend, zodat de API verzoeken van het dashboard toelaat. Er is een test die dat controleert. |
 
 ## 6. Leerpad en certificaat
 

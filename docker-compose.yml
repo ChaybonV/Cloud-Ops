@@ -1,0 +1,23 @@
+# Start de volledige app met:  docker compose up --build
+#   dashboard:          http://localhost:8080
+#   API-documentatie:   http://localhost:8000/docs
+
+services:
+  # De API, gebouwd met backend/Dockerfile.
+  backend:
+    build: ./backend
+    ports:
+      # Poort op je pc : poort in de container.
+      # Het dashboard verwacht de API op poort 8000 (zie API_URL in frontend/app.js).
+      - "8000:8000"
+
+  # Het dashboard, gebouwd met frontend/Dockerfile.
+  frontend:
+    build: ./frontend
+    ports:
+      # ${FRONTEND_PORT:-8080} betekent: de waarde van FRONTEND_PORT uit .env,
+      # of 8080 als er geen .env is.
+      - "${FRONTEND_PORT:-8080}:8080"
+    # Eerst de backend starten, daarna de frontend.
+    depends_on:
+      - backend

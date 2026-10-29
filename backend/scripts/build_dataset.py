@@ -111,8 +111,9 @@ GOALKEEPER_ATTRIBUTES = {
 original_getaddrinfo = socket.getaddrinfo
 
 
-def getaddrinfo_ipv4_first(*args, **kwargs):
-    addresses = original_getaddrinfo(*args, **kwargs)
+def getaddrinfo_ipv4_first(host, port, family=0, type=0, proto=0, flags=0):
+    # Dezelfde parameters als de originele functie, die we gewoon doorgeven.
+    addresses = original_getaddrinfo(host, port, family, type, proto, flags)
     ipv4_addresses = []
     other_addresses = []
     for address in addresses:

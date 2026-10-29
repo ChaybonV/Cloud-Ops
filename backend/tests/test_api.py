@@ -69,9 +69,12 @@ def test_geeft_de_keuzes_voor_de_filters():
     assert options["positions"]["AM"] == "Aanvallende middenvelder"
 
 
-def test_serveert_het_dashboard():
-    response = client.get("/")
+def test_dashboard_mag_de_api_aanroepen():
+    # Het dashboard draait op een ander adres; de API moet dat toelaten (CORS).
+    response = client.get("/api/options", headers={"Origin": "http://localhost:8080"})
 
-    assert response.status_code == 200
-    assert "Football Scout" in response.text
+    assert response.headers["access-control-allow-origin"] == "*"
+
+
+def test_onbekende_route_geeft_404():
     assert client.get("/bestaat-niet").status_code == 404
