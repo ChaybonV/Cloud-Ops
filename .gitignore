@@ -3,5 +3,6 @@ __pycache__/
 .pytest_cache/
 .env
 
-# Bronbestanden voor scripts/build_dataset.py (60 MB): die bewaar je zelf
+# Bronbestanden bewaar je zelf
 backend/data/bronnen/
+backend/data/scripts/

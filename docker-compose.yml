@@ -8,7 +8,7 @@ services:
     build: ./backend
     ports:
       # Poort op je pc : poort in de container.
-      # Het dashboard verwacht de API op poort 8000 (zie API_URL in frontend/app.js).
+      # Het dashboard verwacht de API op poort 8000 (zie API_URL in frontend/index.html).
       - "8000:8000"
 
   # Het dashboard, gebouwd met frontend/Dockerfile.
