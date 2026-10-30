@@ -1,0 +1,33 @@
+# Deze pipeline controleert de code bij elke push, op elke branch.
+# Het resultaat zie je op GitHub onder het tabblad "Actions".
+name: CI
+
+on: push
+
+jobs:
+  test-en-build:
+    # GitHub start hiervoor een lege Linux-machine.
+    runs-on: ubuntu-latest
+
+    # De stappen worden na elkaar uitgevoerd. Faalt er één, dan stopt alles.
+    steps:
+      # Kant-en-klare stap van GitHub: zet de code van de repo op de machine.
+      - name: Code ophalen
+        uses: actions/checkout@v7
+
+      # Kant-en-klare stap van GitHub: installeert Python.
+      - name: Python installeren
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Pakketten installeren
+        run: pip install -r backend/requirements.txt
+
+      - name: Tests uitvoeren
+        working-directory: backend
+        run: python -m pytest
+
+      # Controleert dat beide Docker-containers (backend en frontend) gebouwd kunnen worden.
+      - name: Docker-containers bouwen
+        run: docker compose build

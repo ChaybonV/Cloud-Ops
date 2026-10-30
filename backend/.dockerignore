@@ -1,0 +1,12 @@
+# Deze bestanden en mappen gaan niet mee in de backend-container.
+
+# Bronbestanden (60 MB), alleen nodig om de dataset opnieuw te bouwen
+data/bronnen
+
+# Niet nodig om de API te laten draaien
+scripts
+tests
+
+# Tijdelijke bestanden van Python, in elke map (daarvoor dient **/)
+**/__pycache__
+**/.pytest_cache

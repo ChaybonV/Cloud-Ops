@@ -1,45 +1,39 @@
-"""Bouwt data/players.json uit twee open datasets.
+"""Bouwt data/players.json uit twee open datasets, als ETL (zoals in Data Engineering).
 
+Uitvoeren vanuit de map backend (pandas moet geïnstalleerd zijn):
+
+    pip install pandas
     python scripts/build_dataset.py
 
 - EA Sports FC 26: individuele eigenschappen per speler (0-100).
 - Transfermarkt: marktwaarde, leeftijd, club en cijfers van seizoen 2025/26.
 
-Een speler komt in de dataset als hij in beide bronnen staat met dezelfde
-naam en een passende leeftijd.
+De bronbestanden staan in data/bronnen/ (zie de README voor waar ze vandaan
+komen). Een speler komt in de dataset als hij in beide bronnen staat met
+dezelfde naam en een passende leeftijd.
 
-Het script werkt in vier stappen (zie de functie main onderaan):
-1. De seizoenscijfers per speler optellen (Transfermarkt).
-2. De EA-spelers inlezen.
-3. Elke Transfermarkt-speler koppelen aan zijn EA-speler.
-4. Het resultaat wegschrijven naar data/players.json.
+De functie main onderaan volgt de drie stappen van ETL:
+1. Extract: de bronbestanden inlezen.
+2. Transform: filteren, optellen en de twee bronnen koppelen.
+3. Load: het resultaat wegschrijven naar data/players.json.
 """
 
-import csv
-import gzip
-import io
 import json
-import socket
 import unicodedata
-import urllib.request
-import zipfile
-from datetime import date
-from pathlib import Path
 
-# De map backend/
-ROOT = Path(__file__).resolve().parent.parent
-OUTPUT_FILE = ROOT / "data" / "players.json"
-CACHE_DIRECTORY = ROOT / "data" / "cache"
+import pandas as pd
 
-EA_URL = "https://www.kaggle.com/api/v1/datasets/download/talhademirezen/fc-26-player-stats"
-EA_FILE = "fc_26_players_stats.csv"
-TRANSFERMARKT_URL = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data"
+# Paden vanaf de map backend (daar start je het script).
+SOURCE_FOLDER = "data/bronnen/"
+OUTPUT_FILE = "data/players.json"
 
 SEASON = "2025/2026"
 SEASON_START = "2025-07-01"
 SEASON_END = "2026-06-30"
-# Leeftijd en marktwaarde gelden op het einde van het seizoen.
-REFERENCE_DATE = date(2026, 6, 30)
+# Leeftijd en marktwaarde gelden op het einde van het seizoen: 30 juni 2026.
+REFERENCE_YEAR = 2026
+REFERENCE_MONTH = 6
+REFERENCE_DAY = 30
 
 # Competitiecode van Transfermarkt -> naam in de app.
 LEAGUES = {
@@ -104,51 +98,9 @@ GOALKEEPER_ATTRIBUTES = {
 }
 
 
-# --- Downloaden -------------------------------------------------------------
-
-# Op sommige netwerken werkt IPv6 niet en wacht Python daar minutenlang op.
-# Daarom zetten we de IPv4-adressen vooraan, zodat die eerst geprobeerd worden.
-original_getaddrinfo = socket.getaddrinfo
-
-
-def getaddrinfo_ipv4_first(*args, **kwargs):
-    addresses = original_getaddrinfo(*args, **kwargs)
-    ipv4_addresses = []
-    other_addresses = []
-    for address in addresses:
-        if address[0] == socket.AF_INET:
-            ipv4_addresses.append(address)
-        else:
-            other_addresses.append(address)
-    return ipv4_addresses + other_addresses
-
-
-socket.getaddrinfo = getaddrinfo_ipv4_first
-
-
-def download(url, filename):
-    """Downloadt een bestand naar data/cache en geeft het pad terug.
-
-    Staat het bestand er al, dan wordt het niet opnieuw gedownload.
-    """
-    cache_file = CACHE_DIRECTORY / filename
-    if not cache_file.exists():
-        print(filename + " downloaden...")
-        CACHE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-        response = urllib.request.urlopen(url, timeout=60)
-        cache_file.write_bytes(response.read())
-        response.close()
-    return cache_file
-
-
-def open_transfermarkt(table):
-    """Opent een Transfermarkt-tabel (een gezipt CSV-bestand) om te lezen."""
-    url = TRANSFERMARKT_URL + "/" + table + ".csv.gz"
-    path = download(url, "transfermarkt_" + table + ".csv.gz")
-    return gzip.open(path, "rt", encoding="utf-8", newline="")
-
-
-# --- Hulpfuncties -----------------------------------------------------------
+# =============================================================================
+# Hulpfuncties
+# =============================================================================
 
 
 def normalise(name):
@@ -163,111 +115,125 @@ def normalise(name):
 
 
 def age_on_reference_date(date_of_birth):
-    """Berekent de leeftijd op de peildatum uit een datum zoals '2001-05-17 00:00:00'."""
-    born = date.fromisoformat(date_of_birth[:10])
-    age = REFERENCE_DATE.year - born.year
-    # Wie dat jaar nog niet verjaard is, is een jaar jonger.
-    if (born.month, born.day) > (REFERENCE_DATE.month, REFERENCE_DATE.day):
+    """Berekent de leeftijd op 30 juni 2026 uit een datum zoals '2001-05-17 00:00:00'."""
+    year = int(date_of_birth[0:4])
+    month = int(date_of_birth[5:7])
+    day = int(date_of_birth[8:10])
+
+    age = REFERENCE_YEAR - year
+    # Wie op de peildatum nog niet verjaard is, is een jaar jonger.
+    if month > REFERENCE_MONTH:
+        age = age - 1
+    elif month == REFERENCE_MONTH and day > REFERENCE_DAY:
         age = age - 1
     return age
 
 
-# --- Stap 1: seizoenscijfers per speler -------------------------------------
+# =============================================================================
+# Transform
+# =============================================================================
 
 
-def load_season_totals():
+def season_totals(appearances):
     """Telt per speler de competitiewedstrijden van het seizoen op.
 
-    Geeft een dictionary terug: speler-id -> {matches, minutes, goals, assists}.
+    Geeft een tabel terug met per speler: minutes_played, goals, assists, matches.
     """
-    totals = {}
-    file = open_transfermarkt("appearances")
-    for row in csv.DictReader(file):
-        # Enkel wedstrijden uit onze competities en uit dit seizoen.
-        if row["competition_id"] not in LEAGUES:
-            continue
-        if row["date"] < SEASON_START or row["date"] > SEASON_END:
-            continue
+    # Enkel wedstrijden uit onze competities en uit dit seizoen.
+    season = appearances[appearances["competition_id"].isin(LEAGUES.keys())]
+    season = season[(season["date"] >= SEASON_START) & (season["date"] <= SEASON_END)]
 
-        player_id = row["player_id"]
-        if player_id not in totals:
-            totals[player_id] = {"matches": 0, "minutes": 0, "goals": 0, "assists": 0}
+    # Per speler de minuten, doelpunten en assists optellen.
+    totals = season.groupby("player_id")[["minutes_played", "goals", "assists"]].sum()
+    # Het aantal rijen per speler = het aantal wedstrijden.
+    totals["matches"] = season.groupby("player_id").size()
 
-        totals[player_id]["matches"] += 1
-        totals[player_id]["minutes"] += int(row["minutes_played"])
-        totals[player_id]["goals"] += int(row["goals"])
-        totals[player_id]["assists"] += int(row["assists"])
-    file.close()
-    return totals
+    # player_id terug een gewone kolom maken, zodat we er later op kunnen koppelen.
+    return totals.reset_index()
 
 
-# --- Stap 2: EA-spelers inlezen ---------------------------------------------
+def usable_transfermarkt_players(tm_players, totals):
+    """Houdt de Transfermarkt-spelers over die we kunnen gebruiken."""
+    players = tm_players
+    # Speelde dit seizoen in onze competities.
+    players = players[players["player_id"].isin(totals["player_id"])]
+    # Speelt nu bij een club uit onze competities.
+    players = players[players["current_club_domestic_competition_id"].isin(LEAGUES.keys())]
+    # Marktwaarde en geboortedatum zijn ingevuld.
+    players = players.dropna(subset=["market_value_in_eur", "date_of_birth"])
+
+    # .copy(): een eigen kopie, zodat we er kolommen aan mogen toevoegen.
+    players = players.copy()
+    players["age"] = players["date_of_birth"].apply(age_on_reference_date)
+    players["match_name"] = players["name"].apply(normalise)
+    return players
 
 
-def load_ea_players_by_name():
-    """Leest de EA-spelers in.
+def usable_ea_players(ea_players):
+    """Houdt de EA-spelers met een bekende positie over, met enkel de kolommen die we nodig hebben."""
+    columns = ["Name", "Age", "Position"]
+    for column in ATTRIBUTES:
+        columns.append(column)
+    for column in GOALKEEPER_ATTRIBUTES:
+        if column not in columns:
+            columns.append(column)
 
-    Geeft een dictionary terug: genormaliseerde naam -> lijst van EA-spelers
-    met die naam (meestal één, soms meerdere).
+    players = ea_players[ea_players["Position"].isin(POSITION_GROUPS.keys())]
+    players = players[columns].copy()
+    players["match_name"] = players["Name"].apply(normalise)
+    return players
+
+
+def link_players(tm_players, ea_players):
+    """Koppelt elke Transfermarkt-speler aan zijn EA-speler.
+
+    Een koppeling telt alleen als er precies één EA-speler is met dezelfde
+    naam en een passende leeftijd. Bij twee of meer weten we niet welke de
+    juiste is, en laten we de speler weg.
     """
-    path = download(EA_URL, "ea_fc_26.zip")
-    archive = zipfile.ZipFile(path)
-    file = io.TextIOWrapper(archive.open(EA_FILE), encoding="utf-8-sig")
+    # Alle combinaties met dezelfde (genormaliseerde) naam.
+    linked = tm_players.merge(ea_players, on="match_name", how="inner")
 
-    by_name = {}
-    for row in csv.DictReader(file):
-        if row["Position"] not in POSITION_GROUPS:
-            continue
-        name = normalise(row["Name"])
-        if name not in by_name:
-            by_name[name] = []
-        by_name[name].append(row)
+    # De EA-leeftijd dateert van de start van het seizoen: de speler is daar
+    # even oud of een jaar jonger dan op onze peildatum.
+    difference = linked["age"] - linked["Age"]
+    linked = linked[(difference == 0) | (difference == 1)]
 
-    archive.close()
-    return by_name
+    # Alleen spelers die precies één keer voorkomen.
+    counts = linked["player_id"].value_counts()
+    unique_ids = counts[counts == 1].index
+    return linked[linked["player_id"].isin(unique_ids)]
 
 
-# --- Stap 3: koppelen -------------------------------------------------------
+# =============================================================================
+# Load
+# =============================================================================
 
 
-def find_ea_player(ea_players_by_name, name, age):
-    """Zoekt de EA-speler met dezelfde naam en een passende leeftijd.
-
-    Geeft None terug als er geen is, of als er meerdere zijn (dan weten we
-    niet welke de juiste is).
-    """
-    same_name = ea_players_by_name.get(normalise(name), [])
-
-    candidates = []
-    for row in same_name:
-        # De EA-leeftijd dateert van de start van het seizoen: de speler is
-        # daar even oud of een jaar jonger dan op onze peildatum.
-        difference = age - int(row["Age"])
-        if difference == 0 or difference == 1:
-            candidates.append(row)
-
-    if len(candidates) == 1:
-        return candidates[0]
-    return None
-
-
-def build_record(profile, totals, ea_player, age):
+def build_record(row):
     """Maakt het record van één speler zoals het in players.json komt."""
-    position = POSITION_GROUPS[ea_player["Position"]]
+    position = POSITION_GROUPS[row["Position"]]
 
+    # Een lege cel is in pandas "NaN"; in de dataset zetten we dan een lege tekst.
+    nationality = row["country_of_citizenship"]
+    if pd.isna(nationality):
+        nationality = ""
+
+    # int(...) maakt van de getallen uit pandas gewone Python-getallen,
+    # anders kan json ze niet wegschrijven.
     record = {
-        "id": "tm-" + profile["player_id"],
-        "name": profile["name"],
-        "club": profile["current_club_name"],
-        "league": LEAGUES[profile["current_club_domestic_competition_id"]],
-        "nationality": profile["country_of_citizenship"],
+        "id": "tm-" + str(row["player_id"]),
+        "name": row["name"],
+        "club": row["current_club_name"],
+        "league": LEAGUES[row["current_club_domestic_competition_id"]],
+        "nationality": nationality,
         "position": position,
-        "age": age,
-        "market_value_eur": int(float(profile["market_value_in_eur"])),
-        "matches": totals["matches"],
-        "minutes": totals["minutes"],
-        "goals": totals["goals"],
-        "assists": totals["assists"],
+        "age": int(row["age"]),
+        "market_value_eur": int(row["market_value_in_eur"]),
+        "matches": int(row["matches"]),
+        "minutes": int(row["minutes_played"]),
+        "goals": int(row["goals"]),
+        "assists": int(row["assists"]),
     }
 
     # De eigenschappen uit EA toevoegen. Doelmannen hebben andere kolommen.
@@ -277,12 +243,9 @@ def build_record(profile, totals, ea_player, age):
         columns = ATTRIBUTES
     for column in columns:
         attribute = columns[column]
-        record[attribute] = int(ea_player[column])
+        record[attribute] = int(row[column])
 
     return record
-
-
-# --- Stap 4: wegschrijven ---------------------------------------------------
 
 
 def write_dataset(records):
@@ -311,32 +274,32 @@ def write_dataset(records):
     file.close()
 
 
+# =============================================================================
+# Het script
+# =============================================================================
+
+
 def main():
-    totals = load_season_totals()
-    ea_players_by_name = load_ea_players_by_name()
+    # 1. Extract: de bronbestanden inlezen. pandas pakt de .gz-bestanden zelf uit.
+    appearances = pd.read_csv(SOURCE_FOLDER + "transfermarkt_appearances.csv.gz")
+    tm_players = pd.read_csv(SOURCE_FOLDER + "transfermarkt_players.csv.gz")
+    # "utf-8-sig": het EA-bestand begint met een onzichtbaar teken dat we overslaan.
+    ea_players = pd.read_csv(SOURCE_FOLDER + "ea_fc_26_players.csv", encoding="utf-8-sig")
 
+    # 2. Transform: filteren, optellen en koppelen.
+    totals = season_totals(appearances)
+    tm_players = usable_transfermarkt_players(tm_players, totals)
+    ea_players = usable_ea_players(ea_players)
+    linked = link_players(tm_players, ea_players)
+    linked = linked.merge(totals, on="player_id", how="inner")
+
+    # 3. Load: per speler een record maken en alles wegschrijven.
     records = []
-    candidates = 0
-    file = open_transfermarkt("players")
-    for profile in csv.DictReader(file):
-        # Sla spelers over die we niet kunnen gebruiken.
-        if profile["player_id"] not in totals:
-            continue  # speelde dit seizoen niet in onze competities
-        if profile["current_club_domestic_competition_id"] not in LEAGUES:
-            continue  # speelt nu bij een club buiten onze competities
-        if profile["market_value_in_eur"] == "" or profile["date_of_birth"] == "":
-            continue  # marktwaarde of geboortedatum ontbreekt
-        candidates = candidates + 1
-
-        age = age_on_reference_date(profile["date_of_birth"])
-        ea_player = find_ea_player(ea_players_by_name, profile["name"], age)
-        if ea_player is not None:
-            player_totals = totals[profile["player_id"]]
-            records.append(build_record(profile, player_totals, ea_player, age))
-    file.close()
-
+    for index, row in linked.iterrows():
+        records.append(build_record(row))
     write_dataset(records)
-    print(str(len(records)) + " van " + str(candidates) + " spelers gekoppeld en weggeschreven")
+
+    print(str(len(records)) + " van " + str(len(tm_players)) + " spelers gekoppeld en weggeschreven")
 
 
 if __name__ == "__main__":

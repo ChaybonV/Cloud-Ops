@@ -3,26 +3,58 @@
 ## Football Scout Recommender
 
 Een recommendation engine voor scouting en spelersrekrutering in het voetbal.
-Deze versie is **Milestone 1**: een lokaal draaiende baseline die spelers per
-positie rangschikt op een vaste rolscore. De aanbevelingen zijn nog niet
-gepersonaliseerd, personalisatie per club en de AI-agent volgen later.
+De app rangschikt spelers per positie op een vaste rolscore (de baseline).
+De aanbevelingen zijn nog niet gepersonaliseerd, personalisatie per club en de AI-agent volgen later.
 
-## Lokaal starten
+## Starten
 
-Vereist Python 3.11 of hoger.
+Je hebt alleen [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+en Git nodig. Start Docker Desktop en voer dan uit:
 
 ```sh
-python -m venv .venv
-.venv\Scripts\activate          # macOS/Linux: source .venv/bin/activate
-cd backend
+git clone https://github.com/ChaybonV/Cloud-Ops.git
+cd Cloud-Ops
+docker compose up --build
+```
+
+De eerste keer duurt dat ongeveer een halve minuut. Daarna:
+
+- dashboard: <http://localhost:8080>
+- API-documentatie: <http://localhost:8000/docs>
+
+Stoppen doe je met `Ctrl+C`, of met `docker compose down` in een andere
+terminal.
+
+### Instellingen
+
+Zonder extra stappen staat het dashboard op poort 8080. Is die al in gebruik,
+kopieer dan `.env.example` naar `.env` en kies daar een andere poort.
+`.env` staat in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de
+plek voor geheime sleutels, die zijn er nu nog niet.
+
+### Zonder Docker
+
+Voor het ontwikkelen kan je de twee delen ook rechtstreeks starten, met
+Python 3.11 of hoger, elk in een eigen terminal. Het zijn dezelfde commando's
+als in de containers.
+
+Backend, in de map `backend`:
+
+```sh
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Open daarna <http://localhost:8000> voor het dashboard, of
-<http://localhost:8000/docs> voor de interactieve API-documentatie.
+Frontend, in de map `frontend`:
 
-Tests uitvoeren (in de map `backend`):
+```sh
+python -m http.server 8080
+```
+
+### Tests
+
+De tests draaien automatisch bij elke push (zie [CI](#ci)). Lokaal voer je
+ze uit in de map `backend`:
 
 ```sh
 python -m pytest
@@ -55,7 +87,7 @@ GET /api/recommendations?position=AM&max_age=23&max_market_value=5000000
 Elke speler heeft individuele eigenschappen met een waarde van 0 tot 100,
 zoals tackles, spelinzicht of afwerken. Per positie legt een **rolprofiel**
 vast welke eigenschappen tellen en hoe zwaar (zie
-[backend/app/positions.py](backend/app/positions.py)). De **rolscore** is het gewogen
+[backend/app/recommender.py](backend/app/recommender.py)). De **rolscore** is het gewogen
 gemiddelde van die eigenschappen.
 
 Voorbeeld voor een spits:
@@ -78,23 +110,52 @@ later toevoegt.
 
 ## Structuur
 
+De app bestaat uit twee containers, die `docker-compose.yml` samen start:
+
+| Container | Wat | Poort |
+|---|---|---|
+| `backend` | De API in Python (FastAPI), met de dataset. Zie `backend/Dockerfile`. | 8000 |
+| `frontend` | Het dashboard. De ingebouwde webserver van Python serveert de HTML, CSS en JavaScript. Zie `frontend/Dockerfile`. | 8080 |
+
+De gebruiker opent alleen het dashboard. Het dashboard haalt de aanbevelingen
+op bij de API (het adres staat in `API_URL`, bovenaan de JavaScript in `frontend/index.html`).
+Omdat de twee op een ander adres draaien, laat de API dat uitdrukkelijk toe
+met CORS (zie `backend/app/main.py`).
+
 ```
+.github/workflows/
+  ci.yml               tests en Docker-build bij elke push
 backend/
   app/
-    main.py            API-endpoints (FastAPI)
-    recommender.py     logica: rolscore, filteren en rangschikken
-    positions.py       posities en rolprofielen
-    players.py         inladen van de data
+    players.py         data: de dataset inladen
+    recommender.py     logica: posities, rolprofielen, rolscore, filteren en rangschikken
+    main.py            API: de endpoints (FastAPI)
   data/players.json    dataset: één speler per regel
+  data/bronnen/        bronbestanden voor het script (niet op GitHub)
   scripts/
     build_dataset.py   bouwt data/players.json opnieuw op
-  tests/
+  tests/test_app.py    tests van de logica en de API
+  Dockerfile           bouwt de backend-container
+  .dockerignore        wat niet in de backend-container moet
   requirements.txt     Python-pakketten die de backend nodig heeft
-frontend/              dashboard (HTML, CSS, JavaScript)
+frontend/
+  index.html           het dashboard: HTML met de JavaScript erin
+  styles.css           de opmaak
+  Dockerfile           bouwt de frontend-container
+docs/LOGBOEK-PORTFOLIO.md
+docker-compose.yml     start beide containers
+.env.example           voorbeeld van het bestand .env
 ```
 
-In deze milestone serveert de backend ook het dashboard, zodat één commando
-volstaat om alles te starten.
+## CI
+
+Bij elke push, op elke branch, voert GitHub Actions
+([.github/workflows/ci.yml](.github/workflows/ci.yml)) twee dingen uit:
+
+1. de tests van de backend
+2. het bouwen van beide Docker-containers
+
+Het resultaat staat op GitHub onder het tabblad **Actions**.
 
 ## Data
 
@@ -117,8 +178,22 @@ De twee bronnen worden gekoppeld op naam en leeftijd. Dat lukt voor 4.244 van
 de 5.855 spelers. Wie in de twee bronnen anders gespeld is (bv. Vinicius
 Junior) ontbreekt.
 
-De dataset opnieuw opbouwen (in de map `backend`, downloadt ongeveer 50 MB):
+### De dataset opnieuw opbouwen
+
+Dat is alleen nodig als je de data wil aanpassen. De app gebruikt gewoon
+`players.json`. Het script heeft deze bronbestanden nodig in
+`backend/data/bronnen/` (samen 60 MB, daarom staan ze niet op GitHub):
+
+| Bestand | Waar te halen |
+|---|---|
+| `ea_fc_26_players.csv` | Uit de zip op [Kaggle](https://www.kaggle.com/datasets/talhademirezen/fc-26-player-stats) (`fc_26_players_stats.csv`, hernoemd) |
+| `transfermarkt_players.csv.gz` | [players.csv.gz](https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/players.csv.gz) |
+| `transfermarkt_appearances.csv.gz` | [appearances.csv.gz](https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/appearances.csv.gz) |
+
+Het script is een ETL in drie stappen (Extract, Transform, Load) met pandas.
+Daarna, in de map `backend`:
 
 ```sh
+pip install pandas
 python scripts/build_dataset.py
 ```
