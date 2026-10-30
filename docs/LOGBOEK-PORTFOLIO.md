@@ -19,7 +19,7 @@ Saint-Gilloise dient als voorbeeldclub.
 |---|---|---|---|
 | Voorstel | 30/09/2026 | Cloudplatform en onderwerp gekozen | Ingediend en goedgekeurd |
 | 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Ingediend, demo gegeven |
-| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Bezig |
+| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Ingediend |
 | 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Nog te doen |
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
