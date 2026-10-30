@@ -87,7 +87,7 @@ GET /api/recommendations?position=AM&max_age=23&max_market_value=5000000
 Elke speler heeft individuele eigenschappen met een waarde van 0 tot 100,
 zoals tackles, spelinzicht of afwerken. Per positie legt een **rolprofiel**
 vast welke eigenschappen tellen en hoe zwaar (zie
-[backend/app/positions.py](backend/app/positions.py)). De **rolscore** is het gewogen
+[backend/app/recommender.py](backend/app/recommender.py)). De **rolscore** is het gewogen
 gemiddelde van die eigenschappen.
 
 Voorbeeld voor een spits:
@@ -118,7 +118,7 @@ De app bestaat uit twee containers, die `docker-compose.yml` samen start:
 | `frontend` | Het dashboard. De ingebouwde webserver van Python serveert de HTML, CSS en JavaScript. Zie `frontend/Dockerfile`. | 8080 |
 
 De gebruiker opent alleen het dashboard. Het dashboard haalt de aanbevelingen
-op bij de API (het adres staat in `API_URL` bovenaan `frontend/app.js`).
+op bij de API (het adres staat in `API_URL`, bovenaan de JavaScript in `frontend/index.html`).
 Omdat de twee op een ander adres draaien, laat de API dat uitdrukkelijk toe
 met CORS (zie `backend/app/main.py`).
 
@@ -127,20 +127,20 @@ met CORS (zie `backend/app/main.py`).
   ci.yml               tests en Docker-build bij elke push
 backend/
   app/
-    main.py            API-endpoints (FastAPI)
-    recommender.py     logica: rolscore, filteren en rangschikken
-    positions.py       posities en rolprofielen
-    players.py         inladen van de data
+    players.py         data: de dataset inladen
+    recommender.py     logica: posities, rolprofielen, rolscore, filteren en rangschikken
+    main.py            API: de endpoints (FastAPI)
   data/players.json    dataset: één speler per regel
   data/bronnen/        bronbestanden voor het script (niet op GitHub)
   scripts/
     build_dataset.py   bouwt data/players.json opnieuw op
-  tests/
+  tests/test_app.py    tests van de logica en de API
   Dockerfile           bouwt de backend-container
   .dockerignore        wat niet in de backend-container moet
   requirements.txt     Python-pakketten die de backend nodig heeft
 frontend/
-  index.html, app.js, styles.css
+  index.html           het dashboard: HTML met de JavaScript erin
+  styles.css           de opmaak
   Dockerfile           bouwt de frontend-container
 docs/LOGBOEK-PORTFOLIO.md
 docker-compose.yml     start beide containers

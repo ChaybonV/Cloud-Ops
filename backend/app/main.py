@@ -2,8 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.players import load_players
-from app.positions import POSITION_LABELS
-from app.recommender import DEFAULT_LIMIT, MAX_LIMIT, recommend
+from app.recommender import DEFAULT_LIMIT, MAX_LIMIT, POSITION_LABELS, recommend
 
 app = FastAPI(
     title="Football Scout Recommender",

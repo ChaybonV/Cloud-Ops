@@ -24,20 +24,6 @@ Saint-Gilloise dient als voorbeeldclub.
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
 
-Geplande aanpak per milestone:
-
-- **Milestone 2:** `backend/` en `frontend/` krijgen elk een Dockerfile met
-  een `docker-compose.yml` erboven. De bestaande tests draaien in GitHub
-  Actions. Werk gebeurt op de branch `milestone-2` en gaat via een pull
-  request naar `main`.
-- **Milestone 3:** dezelfde containers gaan naar Azure. De pipeline wordt
-  uitgebreid zodat een push naar `main` automatisch deployt. Budgetalert
-  instellen.
-- **Milestone 4:** de vaste rolprofielen worden profielen per club (bv.
-  andere gewichten bij een 3-5-2). De agent vertaalt een zin naar filters en
-  gewichten. De dataset wordt uitgebreid met de formaties waarin een speler
-  speelde.
-
 ## 3. Timesheet
 
 Vul per werkmoment in wat gepland was, wat er gebeurd is en hoeveel uren het
@@ -52,6 +38,7 @@ kostte.
 | 15/10/2026 | Milestone 1 indienen | demo gegeven aan de docent | 20 minuten |
 | 20/10/2026 | Start milestone 2: containers en CI | Branch `milestone-2`, een Dockerfile voor backend en frontend, `.dockerignore`, `docker-compose.yml`, `.env.example`, GitHub Actions-workflow, CORS in de backend, README aangepast | 6 uren en 15 minuten |
 | 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser. Code verder vereenvoudigd: het datascript is een ETL met pandas die de bronbestanden uit `data/bronnen/` leest, `recommend` geeft één dictionary terug, het dashboard leest de filters met `document.querySelector` | 2 uren en 30 minuten |
+| 30/10/2026 | Milestone 2 afronden | Feedback op milestone 1 verwerkt (de code goed kunnen uitleggen). Laatste controle: de repo van GitHub gecloned en met één commando gestart, geen secrets in de repo. Uitleg over pytest en `assert` toegevoegd in de tests. Logboek aangevuld (wat moeilijk en vlot ging, reflectie). Minder bestanden: JavaScript in `index.html`, rolprofielen in `recommender.py`, tests in `test_app.py` | 2 uren |
 
 ## 4. Technische keuzes
 
@@ -61,12 +48,10 @@ kostte.
 | Python met FastAPI | Node.js (eerste versie), C# | Python is toegelaten in het AI-vak en heeft de meeste bibliotheken voor de personalisatie in Milestone 4. FastAPI controleert de parameters automatisch en maakt zelf API-documentatie op `/docs`. |
 | Uvicorn als webserver | Geen | FastAPI beschrijft alleen de endpoints; uvicorn ontvangt de verzoeken en geeft ze door. |
 | Data in één JSON-bestand in de repository | Databank | Voor 4.244 spelers is een bestand voldoende en het project blijft werken zonder externe diensten. Een databank kan later nog als aparte container. |
-| Rolscore als gewogen gemiddelde per positie | Eén score voor iedereen (bv. doelpunten en assists) | De eerste versie beoordeelde alleen aanvallers eerlijk. Met een rolprofiel per positie telt voor elke rol wat daar belangrijk is. De gewichten staan apart in `positions.py`, zodat ze in Milestone 4 per club kunnen verschillen. |
+| Rolscore als gewogen gemiddelde per positie | Eén score voor iedereen (bv. doelpunten en assists) | De eerste versie beoordeelde alleen aanvallers eerlijk. Met een rolprofiel per positie telt voor elke rol wat daar belangrijk is. De gewichten staan apart bovenaan `recommender.py`, zodat ze in Milestone 4 per club kunnen verschillen. |
 | Filters als queryparameters op één endpoint | Aparte endpoints per filter | De AI-agent kan later hetzelfde endpoint aanroepen met de filters die hij uit een zin haalt. |
 | Indeling in `backend/` en `frontend/` | Alles in één map | Elk deel wordt in Milestone 2 een eigen container. |
 | Twee containers: `backend` en `frontend` (Milestone 2) | Eén container die alles doet | De opdracht vraagt de app op te splitsen in logische componenten. Zo heeft elk deel zijn eigen Dockerfile, net zoals in het DevOps-vak. Beide staan in één repository en `docker-compose.yml` start ze samen. |
-| De ingebouwde webserver van Python (`python -m http.server`) voor de frontend | nginx | Een eerste versie gebruikte nginx. Dat was nieuw voor mij en maakte het geheel moeilijker uit te leggen. De webserver van Python serveert de bestanden met één commando, met een taal die ik al ken. |
-| Het dashboard roept de API rechtstreeks aan op poort 8000 (`API_URL` in `app.js`), met CORS in de backend | nginx die `/api/` doorstuurt naar de backend | Eén regel in `app.js` en één regel in `main.py`. Een browser blokkeert verzoeken naar een ander adres, tenzij de API met CORS zegt dat het mag. |
 | `docker-compose.yml` | Elke container apart starten met `docker build` en `docker run` | Eén kort commando (`docker compose up --build`) start beide containers in de juiste volgorde, en compose leest de instellingen uit `.env`. |
 | `python:3.13-slim` als basis voor beide containers | Volledige Python-image | Kleiner: sneller te bouwen en straks goedkoper om naar Azure te sturen. Een vaste versie (3.13) zorgt dat de build later hetzelfde resultaat geeft. |
 | `.dockerignore` in de backend | Alles kopiëren | De bronbestanden (60 MB), de tests en het datascript zijn niet nodig om de API te laten draaien. |
@@ -138,16 +123,22 @@ en geen personalisatie per club is.
 ### Milestone 2
 
 **Wat vond ik moeilijk?**
-_in te vullen_
+Opnieuw uitzoeken hoe Dockerfiles werken, en vooral hoe je met secrets omgaat:
+die mogen nooit op GitHub terechtkomen. Op dit moment zijn er nog geen
+secrets, wat het eenvoudiger maakte. De aanpak staat wel al klaar met `.env`
+en `.env.example`.
 
 **Wat ging vlot?**
-_in te vullen_
+
+- Eens ik vertrokken was liep het vlot, ook de pipeline met GitHub Actions.
+- Ik heb mijn project van het vak DevOps opnieuw bekeken om te zien hoe alles
+  werkte en hoe ik het hier het best kon toepassen.
+- De Dockerfiles zijn niet te complex gemaakt, maar wel volledig in orde.
 
 **Technische problemen en hoe ze opgelost zijn:**
 
 | Probleem | Oplossing |
 |---|---|
-| Een eerste versie gebruikte nginx als webserver voor het dashboard en om `/api/` door te sturen. Dat was nieuw voor mij en maakte het geheel moeilijker uit te leggen. | nginx vervangen door de ingebouwde webserver van Python; het dashboard roept de API rechtstreeks aan. |
 | In Milestone 1 serveerde de backend ook het dashboard. In een aparte container kan dat niet meer. | De backend serveert alleen nog de API; het dashboard heeft een eigen container. |
 | Het dashboard en de API draaien op een ander adres (poort 8080 en 8000). Een browser blokkeert dan standaard de verzoeken van het dashboard naar de API. | CORS ingesteld in de backend, zodat de API verzoeken van het dashboard toelaat. Er is een test die dat controleert. |
 
@@ -183,4 +174,14 @@ een goede structuur opzetten voor de pipeline en Docker.
 
 ### Milestone 2
 
-_in te vullen_
+**Wat heb ik geleerd?**
+Docker en docker-compose toepassen zodat het volledige project met 1 commando start.
+
+**Wat zou ik anders doen?**
+Net zoals bij de vorige milestone zou ik niet meteen iets anders doen: deze
+milestone was vooral nog steeds het opzetten van het project. In de volgende milestones
+wil ik verder gaan met de personalisatie om tot een mooier geheel te komen.
+
+**Wat neem ik mee naar de volgende milestone?**
+De duidelijke structuur behouden en op die manier verder bouwen, zodat de app
+naar de cloud kan.

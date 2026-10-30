@@ -6,7 +6,7 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # De bestanden van het dashboard kopiëren.
-COPY index.html app.js styles.css ./
+COPY index.html styles.css ./
 
 # Python heeft een ingebouwde webserver die de bestanden in deze map serveert.
 # Het dashboard is daarna bereikbaar op poort 8080.
