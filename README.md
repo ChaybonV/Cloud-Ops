@@ -6,6 +6,16 @@ Een recommendation engine voor scouting en spelersrekrutering in het voetbal.
 De app rangschikt spelers per positie op een vaste rolscore (de baseline).
 De aanbevelingen zijn nog niet gepersonaliseerd, personalisatie per club en de AI-agent volgen later.
 
+## Online
+
+De app draait op Microsoft Azure:
+
+- **dashboard:** <https://scout-frontend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io>
+- **API-documentatie:** <https://scout-backend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io/docs>
+
+Als niemand de app gebruikt, staan de containers uit (zie [Kosten](#kosten)).
+Het eerste bezoek kan daardoor enkele seconden duren.
+
 ## Starten
 
 Je hebt alleen [Docker Desktop](https://www.docker.com/products/docker-desktop/)
@@ -27,10 +37,16 @@ terminal.
 
 ### Instellingen
 
-Zonder extra stappen staat het dashboard op poort 8080. Is die al in gebruik,
-kopieer dan `.env.example` naar `.env` en kies daar een andere poort.
-`.env` staat in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de
-plek voor geheime sleutels, die zijn er nu nog niet.
+De instellingen staan in een bestand `.env` in de hoofdmap. Dat bestand staat
+in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de plek voor
+geheime sleutels.
+
+Zonder `.env` werkt de app ook: `docker-compose.yml` gebruikt dan de
+standaardwaarden. Wil je iets aanpassen, maak dan zelf een `.env` aan:
+
+| Instelling | Betekenis | Standaard |
+|---|---|---|
+| `FRONTEND_PORT` | De poort op je pc waarop het dashboard bereikbaar is | `8080` |
 
 ### Zonder Docker
 
@@ -124,7 +140,7 @@ met CORS (zie `backend/app/main.py`).
 
 ```
 .github/workflows/
-  ci.yml               tests en Docker-build bij elke push
+  ci.yml               CI/CD: tests en images bij elke push, deploy naar Azure bij main
 backend/
   app/
     players.py         data: de dataset inladen
@@ -144,18 +160,72 @@ frontend/
   Dockerfile           bouwt de frontend-container
 docs/LOGBOEK-PORTFOLIO.md
 docker-compose.yml     start beide containers
-.env.example           voorbeeld van het bestand .env
+.env                   instellingen en geheime sleutels (niet op GitHub)
 ```
 
-## CI
+## CI/CD
 
-Bij elke push, op elke branch, voert GitHub Actions
-([.github/workflows/ci.yml](.github/workflows/ci.yml)) twee dingen uit:
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) heeft
+twee jobs:
 
-1. de tests van de backend
-2. het bouwen van beide Docker-containers
+| Job | Wanneer | Wat |
+|---|---|---|
+| `test-en-build` | Bij elke push, op elke branch | De tests van de backend uitvoeren, beide Docker-images bouwen en opslaan in GitHub Container Registry |
+| `deploy` | Alleen bij een push naar `main`, en alleen als `test-en-build` geslaagd is | Inloggen bij Azure en beide Container Apps het nieuwe image geven |
+
+Falen de tests, dan wordt er niets gedeployd en blijft de vorige versie online.
+
+De pipeline logt bij Azure in zonder wachtwoord: Azure vertrouwt alleen pushes
+naar `main` van deze repository (een "federatieve referentie" op de beheerde
+identiteit `id-github-deploy`). De drie ID's die daarvoor nodig zijn, staan in
+de GitHub-secrets van de repository, niet in de code.
 
 Het resultaat staat op GitHub onder het tabblad **Actions**.
+
+## Architectuur op Azure
+
+```
+Ontwikkelaar ──push──► GitHub (code)
+                          │
+                          ▼
+                   GitHub Actions
+                   1. tests
+                   2. images bouwen ──► GitHub Container Registry (ghcr.io)
+                   3. deploy (main) ──► Azure
+                                          │
+   Azure, regio Belgium Central           ▼
+   Resourcegroep rg-football-scout
+   └── Container Apps-omgeving scout-env
+       ├── scout-frontend  (dashboard, poort 8080)
+       └── scout-backend   (API, poort 8000)
+
+Gebruiker ──► scout-frontend ──► browser laadt het dashboard
+          └─────────────────────► browser vraagt de spelers op bij scout-backend
+```
+
+| Onderdeel | Wat |
+|---|---|
+| Resourcegroep `rg-football-scout` | De "map" met alles van dit project |
+| Container Apps-omgeving `scout-env` | De gedeelde omgeving waarin de twee containers draaien |
+| Container App `scout-frontend` | Het dashboard, publiek bereikbaar via HTTPS |
+| Container App `scout-backend` | De API, publiek bereikbaar via HTTPS (CORS staat open voor het dashboard) |
+| Beheerde identiteit `id-github-deploy` | Het account waarmee de pipeline deployt; heeft alleen de rol Inzender op de resourcegroep |
+| GitHub Container Registry | Bewaart de Docker-images; de Container Apps halen ze daar op |
+
+## Kosten
+
+- **Azure for Students:** 100 dollar tegoed, zonder kredietkaart. Is het tegoed
+  op, dan wordt het abonnement uitgeschakeld in plaats van dat er iets
+  aangerekend wordt.
+- **Azure Container Apps (verbruiksplan):** elke maand gratis 180.000
+  vCPU-seconden, 360.000 GiB-seconden en 2 miljoen verzoeken. Elke container
+  gebruikt 0,25 CPU en 0,5 GiB en schaalt naar nul als niemand de app gebruikt.
+  Voor dit project blijft het verbruik daardoor binnen het gratis tegoed.
+- **Logboeken** worden niet opgeslagen (geen Log Analytics), want dat kost geld
+  per GB.
+- **GitHub Container Registry:** gratis voor publieke images.
+- **Budgetalert:** budget van 5 euro per maand op het abonnement, met een
+  e-mail bij 50%, 80% en 100% van de werkelijke kosten.
 
 ## Data
 

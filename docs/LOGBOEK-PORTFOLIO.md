@@ -20,7 +20,7 @@ Saint-Gilloise dient als voorbeeldclub.
 | Voorstel | 30/09/2026 | Cloudplatform en onderwerp gekozen | Ingediend en goedgekeurd |
 | 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Ingediend, demo gegeven |
 | 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Ingediend |
-| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Nog te doen |
+| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Bezig |
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
 
@@ -39,6 +39,8 @@ kostte.
 | 20/10/2026 | Start milestone 2: containers en CI | Branch `milestone-2`, een Dockerfile voor backend en frontend, `.dockerignore`, `docker-compose.yml`, `.env.example`, GitHub Actions-workflow, CORS in de backend, README aangepast | 6 uren en 15 minuten |
 | 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser. Code verder vereenvoudigd: het datascript is een ETL met pandas die de bronbestanden uit `data/bronnen/` leest, `recommend` geeft één dictionary terug, het dashboard leest de filters met `document.querySelector` | 2 uren en 30 minuten |
 | 30/10/2026 | Milestone 2 afronden | Feedback op milestone 1 verwerkt (de code goed kunnen uitleggen). Laatste controle: de repo van GitHub gecloned en met één commando gestart, geen secrets in de repo. Uitleg over pytest en `assert` toegevoegd in de tests. Logboek aangevuld (wat moeilijk en vlot ging, reflectie). Minder bestanden: JavaScript in `index.html`, rolprofielen in `recommender.py`, tests in `test_app.py` | 2 uren |
+| 13/11/2026 | Milestone 2 indienen | demo gegeven aan de docent | 20 minuten |
+| 16/11/2026 | Start milestone 3: cloud deployment | Branch `milestone-3`. Gekozen voor Azure Container Apps (de twee containers ongewijzigd naar Azure, gratis maandelijks tegoed) met GitHub Container Registry voor de images. Azure for Students-account aangemaakt, resourcegroep `rg-football-scout` (West Europe), budget van €5 per maand met waarschuwingen bij 50, 80 en 100%. `.env` aangemaakt en `.env.example` verwijderd (feedback docent). Pipeline slaat de images op in GitHub Container Registry | _begonnen 11u50 nog aan te vullen_ |
 
 ## 4. Technische keuzes
 
@@ -59,6 +61,16 @@ kostte.
 | Het datascript leest de bronbestanden uit een map (`data/bronnen/`) in plaats van ze zelf te downloaden | Automatisch downloaden in het script | Ik bewaar de bronbestanden zelf, zodat het project blijft werken als de downloadlinks verdwijnen. Zonder downloadcode is het script ook veel korter en eenvoudiger: alleen inlezen, koppelen en wegschrijven. |
 | Code zo schrijven dat ze lijkt op wat ik in JavaScript en C# gezien heb | Typische Python-schrijfwijzen | Python ken ik vooral uit notebooks (pandas, scikit-learn); een webapp schreef ik tot nu toe in JavaScript. Zo kan ik elke regel uitleggen. Bv. `recommend` geeft één dictionary terug in plaats van twee waarden tegelijk, en het dashboard leest de filters met `document.querySelector`. |
 | De poort van het dashboard in `.env`, met een standaardwaarde in `docker-compose.yml` | `.env` verplicht maken | `git clone` plus één commando moet volstaan, ook zonder `.env`. Wie een andere poort nodig heeft, past ze aan in `.env`. Er zijn nog geen geheime sleutels: lokaal bouwen en de pipeline hebben er geen nodig. De eerste komen in Milestone 3 (toegang tot Azure, als GitHub-secret) en Milestone 4 (sleutel van de AI-agent, in `.env`). |
+| Een echt `.env`-bestand (niet op GitHub), zonder `.env.example` (Milestone 3) | `.env.example` in de repo als voorbeeld | Op vraag van de docent bij de demo van Milestone 2. De instellingen staan nu in een tabel in de README. `.env` blijft in `.gitignore`, en `docker-compose.yml` heeft standaardwaarden, zodat `git clone` plus één commando nog steeds werkt. |
+| Azure Container Apps (Milestone 3) | Azure App Service, een virtuele machine | Draait mijn twee Docker-containers zoals ze zijn. Het verbruiksplan heeft een gratis tegoed per maand (180.000 vCPU-seconden, 360.000 GiB-seconden, 2 miljoen verzoeken), en de containers schalen naar nul als niemand de app gebruikt. |
+| Regio Belgium Central (Milestone 3) | West Europe, France Central | West Europe is niet toegelaten voor Azure for Students. Van de toegelaten regio's ligt Belgium Central het dichtst bij mijn gebruikers en ikzelf (Belgische clubs), dus de app is er het snelst. |
+| GitHub Container Registry (`ghcr.io`) voor de images (Milestone 3) | Docker Hub, Azure Container Registry | Staat naast mijn code en pipeline op GitHub. De pipeline logt in met `GITHUB_TOKEN`, dat GitHub zelf aanmaakt: geen extra secret. Gratis voor publieke images, terwijl Azure Container Registry maandelijks geld kost. Docker Hub zou een extra account en secret vragen. |
+| Logboeken van Container Apps niet opslaan (Milestone 3) | Logboeken bewaren in Log Analytics | Bewaren kost geld per GB. Live meekijken in de logboeken kan nog altijd. |
+| De pipeline logt bij Azure in zonder wachtwoord: beheerde identiteit `id-github-deploy` met een federatieve referentie (Milestone 3) | Een service principal met een wachtwoord (client secret) in GitHub-secrets | Er is geen wachtwoord dat kan uitlekken of verlopen. Azure vertrouwt alleen pushes naar `main` van mijn repository. In GitHub-secrets staan alleen drie ID's. |
+| De identiteit krijgt de rol Inzender, alleen op de resourcegroep (Milestone 3) | Inzender of Eigenaar op het hele abonnement | De pipeline mag alleen mijn Container Apps bijwerken, niets daarbuiten. |
+| Deploy alleen bij een push naar `main`, en alleen als de tests slagen (Milestone 3) | Bij elke push deployen | Op `main` staat alleen afgewerkte code. Falen de tests, dan blijft de vorige versie online. |
+| Elk image krijgt de commit als tag (`github.sha`) (Milestone 3) | Alleen `latest` | Bij elke deploy is er een nieuwe versie, en je weet altijd welke code online staat. |
+| Het dashboard kiest het adres van de API zelf: `localhost` op mijn pc, de Azure-URL online (Milestone 3) | Twee versies van het dashboard | Eén `if` in de JavaScript; hetzelfde dashboard werkt lokaal en online. |
 | GitHub Actions bij elke push op elke branch | Alleen op `main` | De opdracht vraagt een build bij elke push. Zo wordt ook het werk op `milestone-2` gecontroleerd voor het naar `main` gaat. |
 
 ### De keuze van de data
@@ -142,6 +154,23 @@ en `.env.example`.
 | In Milestone 1 serveerde de backend ook het dashboard. In een aparte container kan dat niet meer. | De backend serveert alleen nog de API; het dashboard heeft een eigen container. |
 | Het dashboard en de API draaien op een ander adres (poort 8080 en 8000). Een browser blokkeert dan standaard de verzoeken van het dashboard naar de API. | CORS ingesteld in de backend, zodat de API verzoeken van het dashboard toelaat. Er is een test die dat controleert. |
 
+### Milestone 3
+
+**Wat vond ik moeilijk?**
+_in te vullen_
+
+**Wat ging vlot?**
+_in te vullen_
+
+**Technische problemen en hoe ze opgelost zijn:**
+
+| Probleem | Oplossing |
+|---|---|
+| Het aanmaken van de Container Apps in West Europe werd geweigerd (`RequestDisallowedByAzure`). | Azure for Students laat maar enkele regio's toe. In het beleid (Policy) van het abonnement de toegelaten regio's opgezocht en Belgium Central gekozen. |
+| Na het wijzigen van de regio stond het tabblad Container terug op Azure Container Registry. | Opnieuw ingevuld: Docker Hub of andere registers, openbaar, `ghcr.io`. |
+| Azure kon de images niet ophalen, want ze waren privé in GitHub Container Registry. | De twee packages op GitHub op Public gezet; ze bevatten geen secrets. |
+| Het dashboard gebruikte altijd `localhost:8000` als adres van de API, ook online. | Het dashboard kiest het adres op basis van waar het geopend wordt. |
+
 ## 6. Leerpad en certificaat
 
 Microsoft Certified: Azure Fundamentals (AZ-900).
@@ -185,3 +214,7 @@ wil ik verder gaan met de personalisatie om tot een mooier geheel te komen.
 **Wat neem ik mee naar de volgende milestone?**
 De duidelijke structuur behouden en op die manier verder bouwen, zodat de app
 naar de cloud kan.
+
+### Milestone 3
+
+_in te vullen: wat heb ik geleerd, wat zou ik anders doen, wat neem ik mee?_
