@@ -6,20 +6,36 @@ Een recommendation engine voor scouting en spelersrekrutering in het voetbal.
 De app rangschikt spelers per positie op een vaste rolscore (de baseline).
 De aanbevelingen zijn nog niet gepersonaliseerd, personalisatie per club en de AI-agent volgen later.
 
-## Online
+## De app gebruiken
 
-De app draait op Microsoft Azure:
+Er zijn twee manieren: online gebruiken of zelf op je eigen pc draaien.
 
-- **dashboard:** <https://scout-frontend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io>
-- **API-documentatie:** <https://scout-backend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io/docs>
+| | Online | Lokaal op je pc |
+|---|---|---|
+| **Waarvoor** | De app gebruiken of tonen | Ontwikkelen en testen |
+| **Wat je nodig hebt** | Alleen een browser | Git en Docker Desktop |
+| **Dashboard** | <https://scout-frontend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io> | <http://localhost:8080> |
+| **API-documentatie** | <https://scout-backend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io/docs> | <http://localhost:8000/docs> |
+| **Waar het draait** | Azure Container Apps, regio Belgium Central | Twee Docker-containers op je pc |
+| **Nieuwe versie** | Automatisch na een push naar `main` (zie [CI/CD](#cicd)) | Zelf opnieuw starten met `docker compose up --build` |
 
-Als niemand de app gebruikt, staan de containers uit (zie [Kosten](#kosten)).
-Het eerste bezoek kan daardoor enkele seconden duren.
+Het dashboard kiest zelf welke API het gebruikt. Open je het op je eigen pc
+(`localhost`), dan vraagt het de spelers op bij de lokale backend op poort 8000.
+Open je het online, dan bij de backend op Azure. Dat staat in `API_URL`,
+bovenaan de JavaScript in `frontend/index.html`.
 
-## Starten
+### Online
 
-Je hebt alleen [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-en Git nodig. Start Docker Desktop en voer dan uit:
+Open de link van het dashboard hierboven, er hoeft niets geïnstalleerd te
+worden.
+
+Als niemand de app gebruikt, staan de containers op Azure uit (zie
+[Kosten](#kosten)). Het eerste bezoek kan daardoor tot een minuut duren: Azure
+start dan eerst de containers. Daarna gaat alles snel.
+
+### Lokaal met Docker
+
+Start Docker Desktop en voer dan uit:
 
 ```sh
 git clone https://github.com/ChaybonV/Cloud-Ops.git
@@ -27,28 +43,13 @@ cd Cloud-Ops
 docker compose up --build
 ```
 
-De eerste keer duurt dat ongeveer een halve minuut. Daarna:
-
-- dashboard: <http://localhost:8080>
-- API-documentatie: <http://localhost:8000/docs>
+De eerste keer duurt dat ongeveer een halve minuut. Open daarna
+<http://localhost:8080>.
 
 Stoppen doe je met `Ctrl+C`, of met `docker compose down` in een andere
 terminal.
 
-### Instellingen
-
-De instellingen staan in een bestand `.env` in de hoofdmap. Dat bestand staat
-in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de plek voor
-geheime sleutels.
-
-Zonder `.env` werkt de app ook: `docker-compose.yml` gebruikt dan de
-standaardwaarden. Wil je iets aanpassen, maak dan zelf een `.env` aan:
-
-| Instelling | Betekenis | Standaard |
-|---|---|---|
-| `FRONTEND_PORT` | De poort op je pc waarop het dashboard bereikbaar is | `8080` |
-
-### Zonder Docker
+### Lokaal zonder Docker
 
 Voor het ontwikkelen kan je de twee delen ook rechtstreeks starten, met
 Python 3.11 of hoger, elk in een eigen terminal. Het zijn dezelfde commando's
@@ -67,10 +68,26 @@ Frontend, in de map `frontend`:
 python -m http.server 8080
 ```
 
+### Instellingen (alleen lokaal)
+
+De instellingen voor je eigen pc staan in een bestand `.env` in de hoofdmap.
+Dat bestand staat in `.gitignore` en komt dus nooit op GitHub. Daarom is het
+ook de plek voor geheime sleutels.
+
+Zonder `.env` werkt de app ook: `docker-compose.yml` gebruikt dan de
+standaardwaarden. Wil je iets aanpassen, maak dan zelf een `.env` aan:
+
+| Instelling | Betekenis | Standaard |
+|---|---|---|
+| `FRONTEND_PORT` | De poort op je pc waarop het dashboard bereikbaar is | `8080` |
+
+Online gebruikt de app geen `.env`. Wat de pipeline nodig heeft om naar Azure
+te deployen, staat in de secrets van de GitHub-repository (zie [CI/CD](#cicd)).
+
 ### Tests
 
-De tests draaien automatisch bij elke push (zie [CI](#ci)). Lokaal voer je
-ze uit in de map `backend`:
+De tests draaien automatisch bij elke push (zie [CI/CD](#cicd)). Lokaal voer
+je ze uit in de map `backend`:
 
 ```sh
 python -m pytest
