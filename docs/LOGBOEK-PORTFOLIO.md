@@ -19,8 +19,8 @@ Saint-Gilloise dient als voorbeeldclub.
 |---|---|---|---|
 | Voorstel | 30/09/2026 | Cloudplatform en onderwerp gekozen | Ingediend en goedgekeurd |
 | 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Ingediend, demo gegeven |
-| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Ingediend |
-| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Bezig |
+| 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Ingediend, demo gegeven |
+| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Klaar, demo nog te geven |
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
 
@@ -40,7 +40,7 @@ kostte.
 | 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser. Code verder vereenvoudigd: het datascript is een ETL met pandas die de bronbestanden uit `data/bronnen/` leest, `recommend` geeft één dictionary terug, het dashboard leest de filters met `document.querySelector` | 2 uren en 30 minuten |
 | 30/10/2026 | Milestone 2 afronden | Feedback op milestone 1 verwerkt (de code goed kunnen uitleggen). Laatste controle: de repo van GitHub gecloned en met één commando gestart, geen secrets in de repo. Uitleg over pytest en `assert` toegevoegd in de tests. Logboek aangevuld (wat moeilijk en vlot ging, reflectie). Minder bestanden: JavaScript in `index.html`, rolprofielen in `recommender.py`, tests in `test_app.py` | 2 uren |
 | 13/11/2026 | Milestone 2 indienen | demo gegeven aan de docent | 20 minuten |
-| 16/11/2026 | Start milestone 3: cloud deployment | Branch `milestone-3`. Gekozen voor Azure Container Apps (de twee containers ongewijzigd naar Azure, gratis maandelijks tegoed) met GitHub Container Registry voor de images. Azure for Students-account aangemaakt, resourcegroep `rg-football-scout` (West Europe), budget van €5 per maand met waarschuwingen bij 50, 80 en 100%. `.env` aangemaakt en `.env.example` verwijderd (feedback docent). Pipeline slaat de images op in GitHub Container Registry | _begonnen 11u50 nog aan te vullen_ |
+| 16/11/2026 | Start milestone 3: cloud deployment | Branch `milestone-3`. Gekozen voor Azure Container Apps (de twee containers ongewijzigd naar Azure, gratis maandelijks tegoed) met GitHub Container Registry voor de images. Azure for Students-account aangemaakt, resourcegroep `rg-football-scout` (West Europe), budget van €5 per maand met waarschuwingen bij 50, 80 en 100%. `.env` aangemaakt en `.env.example` verwijderd (feedback docent). Pipeline slaat de images op in GitHub Container Registry. Container Apps `scout-backend` en `scout-frontend` aangemaakt in Belgium Central (West Europe niet toegelaten). Beheerde identiteit `id-github-deploy` met federatieve referentie en rol Inzender, drie GitHub-secrets, deploy-job in de pipeline. Eerste automatische deploy bij de merge naar `main` geslaagd. README: publieke URL, architectuur en kosten, en het verschil tussen online en lokaal gebruiken | 4 uren en 20 minuten |
 
 ## 4. Technische keuzes
 
@@ -157,10 +157,27 @@ en `.env.example`.
 ### Milestone 3
 
 **Wat vond ik moeilijk?**
-_in te vullen_
+Van nul uitzoeken hoe Azure werkt en in elkaar steekt. We hadden nog nooit
+Azure of een ander cloudplatform gebruikt, dus voor de eerste keer was het goed
+zoeken en stap voor stap werken. Daarbij heb ik wel wat hulp van Claude AI
+gebruikt om enkele stappen verduidelijkt te krijgen.
+
+Ook de verbinding tussen GitHub en Azure was even zoeken: de pipeline krijgt
+haar gegevens via de secrets van de repository, niet via `.env`, want `.env`
+staat alleen op mijn pc. Daarnaast is er nog `GITHUB_TOKEN`, dat GitHub zelf
+aanmaakt om de images op te slaan.
+
+In het begin wist ik ook niet goed hoe de frontend online de gegevens van de
+backend kreeg. Dat werd duidelijk met de twee Container Apps in dezelfde
+omgeving: de browser laadt het dashboard van de frontend en vraagt de spelers
+rechtstreeks op bij de backend.
 
 **Wat ging vlot?**
-_in te vullen_
+
+- Eens ik wist waar alles stond, ging de rest vlot: het kostenbeheer instellen
+  en de pipeline uitbreiden tot CI/CD, zodat alles in 1 pipeline verloopt.
+- Ik heb voor GitHub Container Registry gekozen om de Docker-images te
+  bewaren. Zo haalt Azure de images rechtstreeks van GitHub, naast mijn code.
 
 **Technische problemen en hoe ze opgelost zijn:**
 
@@ -217,4 +234,20 @@ naar de cloud kan.
 
 ### Milestone 3
 
-_in te vullen: wat heb ik geleerd, wat zou ik anders doen, wat neem ik mee?_
+**Wat heb ik geleerd?**
+
+- Veilig inloggen met een beheerde identiteit, zonder wachtwoord.
+- Gegevens voor de pipeline bewaren in de secrets van GitHub in plaats van in
+  `.env`. `.env` gebruik ik later wel, in Milestone 4, voor de sleutel van de
+  AI-agent op mijn pc.
+- Alles rond Azure en cloudplatformen, en de kostenbeheersing die daarbij
+  hoort: het gratis tegoed, de budgetalert en containers die naar nul schalen.
+
+**Wat zou ik anders doen?**
+Eerder starten met het leerpad voor het certificaat (AZ-900), of toch met
+enkele delen ervan, zodat ik de begrippen al begrijp voor ik ermee werk. Voor
+de rest ben ik tevreden over hoe ik deze milestone heb aangepakt.
+
+**Wat neem ik mee naar de volgende milestone?**
+Verder bouwen op deze pipeline: elke verbetering aan de personalisatie en de
+AI-agent komt via een push naar `main` automatisch online.
