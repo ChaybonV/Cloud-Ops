@@ -1,6 +1,8 @@
-# Deze pipeline controleert de code bij elke push, op elke branch.
+# Deze pipeline draait bij elke push, op elke branch.
+# Job 1 (test-en-build): tests uitvoeren, images bouwen en opslaan.
+# Job 2 (deploy): alleen bij een push naar main de nieuwe versie op Azure zetten.
 # Het resultaat zie je op GitHub onder het tabblad "Actions".
-name: CI
+name: CI/CD
 
 on: push
 
@@ -9,6 +11,8 @@ on: push
 env:
   BACKEND_IMAGE: ghcr.io/chaybonv/football-scout-backend
   FRONTEND_IMAGE: ghcr.io/chaybonv/football-scout-frontend
+  # Waar de app op Azure staat.
+  RESOURCE_GROUP: rg-football-scout
 
 jobs:
   test-en-build:
@@ -60,3 +64,37 @@ jobs:
         run: |
           docker build -t $FRONTEND_IMAGE:${{ github.sha }} -t $FRONTEND_IMAGE:latest ./frontend
           docker push --all-tags $FRONTEND_IMAGE
+
+  deploy:
+    # Pas starten als job 1 geslaagd is, en alleen op de branch main.
+    needs: test-en-build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    # id-token: write laat GitHub een bewijs maken van wie deze pipeline is
+    # (welke repo en welke branch). Azure controleert dat bewijs bij het inloggen.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      # Inloggen als de beheerde identiteit id-github-deploy, zonder wachtwoord.
+      # De drie ID's staan in de GitHub-secrets van de repo, niet in de code.
+      - name: Inloggen bij Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # De commando's voor Container Apps zitten in een uitbreiding van de Azure CLI.
+      - name: Azure CLI-uitbreiding voor Container Apps installeren
+        run: az extension add --name containerapp --upgrade
+
+      # Elke Container App krijgt het image van deze commit (github.sha).
+      # Azure start dan een nieuwe versie en stuurt het verkeer ernaartoe.
+      - name: Backend bijwerken op Azure
+        run: az containerapp update --name scout-backend --resource-group $RESOURCE_GROUP --image $BACKEND_IMAGE:${{ github.sha }}
+
+      - name: Frontend bijwerken op Azure
+        run: az containerapp update --name scout-frontend --resource-group $RESOURCE_GROUP --image $FRONTEND_IMAGE:${{ github.sha }}
