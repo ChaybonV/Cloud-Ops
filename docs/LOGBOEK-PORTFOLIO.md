@@ -187,6 +187,8 @@ rechtstreeks op bij de backend.
 | Na het wijzigen van de regio stond het tabblad Container terug op Azure Container Registry. | Opnieuw ingevuld: Docker Hub of andere registers, openbaar, `ghcr.io`. |
 | Azure kon de images niet ophalen, want ze waren privé in GitHub Container Registry. | De twee packages op GitHub op Public gezet; ze bevatten geen secrets. |
 | Het dashboard gebruikte altijd `localhost:8000` als adres van de API, ook online. | Het dashboard kiest het adres op basis van waar het geopend wordt. |
+| Online toonde het dashboard soms het resultaat van een vorige filter. Bij elke toets in een invulveld vertrekt een aanvraag, en online kan een oud antwoord na een nieuw aankomen. Lokaal gaat dat zo snel dat het niet opviel. | Elke aanvraag krijgt een volgnummer; het dashboard toont alleen het antwoord op de laatste aanvraag. |
+| Online duurt de eerste aanvraag na een tijd zonder bezoekers tot 40 seconden. De containers schalen naar nul en moeten dan eerst opstarten. | Bewust zo gelaten: naar nul schalen houdt de kosten op nul. Het dashboard toont nu "Aanbevelingen laden…" zolang het wacht. Voor een demo de app vooraf openen. |
 
 ## 6. Leerpad en certificaat
 

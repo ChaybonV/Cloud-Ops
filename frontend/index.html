@@ -247,10 +247,27 @@
         return result;
       }
 
+      // Elke aanvraag krijgt een volgnummer. Online kan een oud antwoord later
+      // aankomen dan een nieuw; met het volgnummer tonen we alleen het antwoord op de laatste aanvraag.
+      let latestRequest = 0;
+
       // Haalt de aanbevelingen op en toont ze op de pagina.
       async function loadRecommendations() {
+        latestRequest = latestRequest + 1;
+        const thisRequest = latestRequest;
+
+        // Tonen dat er geladen wordt. Online kan de eerste keer tot een minuut
+        // duren, omdat Azure de containers dan eerst moet starten.
+        message.textContent = "Aanbevelingen laden…";
+        message.classList.remove("is-hidden");
+
         try {
           const result = await fetchJson(buildUrl());
+
+          // Intussen is er een nieuwere aanvraag gestart: dit antwoord negeren.
+          if (thisRequest !== latestRequest) {
+            return;
+          }
 
           // Oude kaarten weghalen en de nieuwe toevoegen.
           playerGrid.innerHTML = "";
@@ -270,6 +287,9 @@
             message.classList.add("is-hidden");
           }
         } catch (error) {
+          if (thisRequest !== latestRequest) {
+            return;
+          }
           playerGrid.innerHTML = "";
           resultCount.textContent = "";
           message.textContent = "Aanbevelingen konden niet worden geladen: " + error.message;
