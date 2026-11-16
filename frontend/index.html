@@ -82,7 +82,12 @@
       // -------------------------
 
       // Het adres van de API (de backend-container).
-      const API_URL = "http://localhost:8000";
+      // Online staat de backend op Azure. Open je het dashboard op je eigen pc
+      // (localhost), dan gebruiken we de backend die lokaal op poort 8000 draait.
+      let API_URL = "https://scout-backend.yellowdune-90943d99.belgiumcentral.azurecontainerapps.io";
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        API_URL = "http://localhost:8000";
+      }
 
       // -------------------------
       // Elementen uit index.html
