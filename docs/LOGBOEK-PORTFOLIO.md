@@ -20,7 +20,7 @@ Saint-Gilloise dient als voorbeeldclub.
 | Voorstel | 30/09/2026 | Cloudplatform en onderwerp gekozen | Ingediend en goedgekeurd |
 | 1. Lokale baseline | 16/10/2026 | App draait lokaal, baseline-recommender, endpoint, propere structuur | Ingediend, demo gegeven |
 | 2. Containerisatie en CI | 13/11/2026 | Dockerfile per component, docker-compose, `.env` voor secrets, GitHub Actions bouwt bij elke push | Ingediend |
-| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Nog te doen |
+| 3. Cloud deployment en CI/CD | 04/12/2026 | Publieke URL op Azure, push naar `main` deployt automatisch, kostenbeheer | Bezig |
 | 4. Personalisatie en AI-agent | 18/12/2026 | Aanbevelingen per club, agent verfijnt op basis van input, vergelijking baseline tegenover gepersonaliseerd | Nog te doen |
 | Eindpresentatie | Examenperiode | Presentatie voor de jury | Nog te doen |
 
@@ -39,6 +39,8 @@ kostte.
 | 20/10/2026 | Start milestone 2: containers en CI | Branch `milestone-2`, een Dockerfile voor backend en frontend, `.dockerignore`, `docker-compose.yml`, `.env.example`, GitHub Actions-workflow, CORS in de backend, README aangepast | 6 uren en 15 minuten |
 | 29/10/2026 | Milestone 2 afwerken | Alles nagekeken en enkele kleine aanpassingen, de volledige app gestart vanuit een lege map zonder `.env`, het dashboard getest in de browser. Code verder vereenvoudigd: het datascript is een ETL met pandas die de bronbestanden uit `data/bronnen/` leest, `recommend` geeft één dictionary terug, het dashboard leest de filters met `document.querySelector` | 2 uren en 30 minuten |
 | 30/10/2026 | Milestone 2 afronden | Feedback op milestone 1 verwerkt (de code goed kunnen uitleggen). Laatste controle: de repo van GitHub gecloned en met één commando gestart, geen secrets in de repo. Uitleg over pytest en `assert` toegevoegd in de tests. Logboek aangevuld (wat moeilijk en vlot ging, reflectie). Minder bestanden: JavaScript in `index.html`, rolprofielen in `recommender.py`, tests in `test_app.py` | 2 uren |
+| 13/11/2026 | Milestone 2 indienen | demo gegeven aan de docent | 20 minuten |
+| 16/11/2026 | Start milestone 3: cloud deployment | Branch `milestone-3`. Gekozen voor Azure Container Apps (de twee containers ongewijzigd naar Azure, gratis maandelijks tegoed) met GitHub Container Registry voor de images. Azure for Students-account aangemaakt, resourcegroep `rg-football-scout` (West Europe), budget van €5 per maand met waarschuwingen bij 50, 80 en 100%. `.env` aangemaakt en `.env.example` verwijderd (feedback docent). Pipeline slaat de images op in GitHub Container Registry | _begonnen 11u50 nog aan te vullen_ |
 
 ## 4. Technische keuzes
 
@@ -59,6 +61,7 @@ kostte.
 | Het datascript leest de bronbestanden uit een map (`data/bronnen/`) in plaats van ze zelf te downloaden | Automatisch downloaden in het script | Ik bewaar de bronbestanden zelf, zodat het project blijft werken als de downloadlinks verdwijnen. Zonder downloadcode is het script ook veel korter en eenvoudiger: alleen inlezen, koppelen en wegschrijven. |
 | Code zo schrijven dat ze lijkt op wat ik in JavaScript en C# gezien heb | Typische Python-schrijfwijzen | Python ken ik vooral uit notebooks (pandas, scikit-learn); een webapp schreef ik tot nu toe in JavaScript. Zo kan ik elke regel uitleggen. Bv. `recommend` geeft één dictionary terug in plaats van twee waarden tegelijk, en het dashboard leest de filters met `document.querySelector`. |
 | De poort van het dashboard in `.env`, met een standaardwaarde in `docker-compose.yml` | `.env` verplicht maken | `git clone` plus één commando moet volstaan, ook zonder `.env`. Wie een andere poort nodig heeft, past ze aan in `.env`. Er zijn nog geen geheime sleutels: lokaal bouwen en de pipeline hebben er geen nodig. De eerste komen in Milestone 3 (toegang tot Azure, als GitHub-secret) en Milestone 4 (sleutel van de AI-agent, in `.env`). |
+| Een echt `.env`-bestand (niet op GitHub), zonder `.env.example` (Milestone 3) | `.env.example` in de repo als voorbeeld | Op vraag van de docent bij de demo van Milestone 2. De instellingen staan nu in een tabel in de README. `.env` blijft in `.gitignore`, en `docker-compose.yml` heeft standaardwaarden, zodat `git clone` plus één commando nog steeds werkt. |
 | GitHub Actions bij elke push op elke branch | Alleen op `main` | De opdracht vraagt een build bij elke push. Zo wordt ook het werk op `milestone-2` gecontroleerd voor het naar `main` gaat. |
 
 ### De keuze van de data

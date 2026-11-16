@@ -4,10 +4,21 @@ name: CI
 
 on: push
 
+# De namen van onze twee images in GitHub Container Registry (ghcr.io).
+# Een image-naam moet in kleine letters.
+env:
+  BACKEND_IMAGE: ghcr.io/chaybonv/football-scout-backend
+  FRONTEND_IMAGE: ghcr.io/chaybonv/football-scout-frontend
+
 jobs:
   test-en-build:
     # GitHub start hiervoor een lege Linux-machine.
     runs-on: ubuntu-latest
+
+    # Wat deze pipeline mag: de code lezen en images opslaan in GitHub Container Registry.
+    permissions:
+      contents: read
+      packages: write
 
     # De stappen worden na elkaar uitgevoerd. Faalt er één, dan stopt alles.
     steps:
@@ -28,6 +39,24 @@ jobs:
         working-directory: backend
         run: python -m pytest
 
-      # Controleert dat beide Docker-containers (backend en frontend) gebouwd kunnen worden.
-      - name: Docker-containers bouwen
-        run: docker compose build
+      # Inloggen bij GitHub Container Registry. GITHUB_TOKEN maakt GitHub zelf
+      # aan bij elke run; dat is geen wachtwoord dat wij moeten bewaren.
+      - name: Inloggen bij GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Elk image krijgt twee namen (tags):
+      # - de code van deze commit (github.sha), zodat elke versie terug te vinden is
+      # - latest, de nieuwste versie
+      - name: Backend-image bouwen en opslaan
+        run: |
+          docker build -t $BACKEND_IMAGE:${{ github.sha }} -t $BACKEND_IMAGE:latest ./backend
+          docker push --all-tags $BACKEND_IMAGE
+
+      - name: Frontend-image bouwen en opslaan
+        run: |
+          docker build -t $FRONTEND_IMAGE:${{ github.sha }} -t $FRONTEND_IMAGE:latest ./frontend
+          docker push --all-tags $FRONTEND_IMAGE

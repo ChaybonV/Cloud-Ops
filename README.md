@@ -27,10 +27,16 @@ terminal.
 
 ### Instellingen
 
-Zonder extra stappen staat het dashboard op poort 8080. Is die al in gebruik,
-kopieer dan `.env.example` naar `.env` en kies daar een andere poort.
-`.env` staat in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de
-plek voor geheime sleutels, die zijn er nu nog niet.
+De instellingen staan in een bestand `.env` in de hoofdmap. Dat bestand staat
+in `.gitignore` en komt dus nooit op GitHub. Daarom is het ook de plek voor
+geheime sleutels.
+
+Zonder `.env` werkt de app ook: `docker-compose.yml` gebruikt dan de
+standaardwaarden. Wil je iets aanpassen, maak dan zelf een `.env` aan:
+
+| Instelling | Betekenis | Standaard |
+|---|---|---|
+| `FRONTEND_PORT` | De poort op je pc waarop het dashboard bereikbaar is | `8080` |
 
 ### Zonder Docker
 
@@ -144,7 +150,7 @@ frontend/
   Dockerfile           bouwt de frontend-container
 docs/LOGBOEK-PORTFOLIO.md
 docker-compose.yml     start beide containers
-.env.example           voorbeeld van het bestand .env
+.env                   instellingen en geheime sleutels (niet op GitHub)
 ```
 
 ## CI
