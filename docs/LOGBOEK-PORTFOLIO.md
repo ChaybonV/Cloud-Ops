@@ -41,6 +41,7 @@ kostte.
 | 30/10/2026 | Milestone 2 afronden | Feedback op milestone 1 verwerkt (de code goed kunnen uitleggen). Laatste controle: de repo van GitHub gecloned en met één commando gestart, geen secrets in de repo. Uitleg over pytest en `assert` toegevoegd in de tests. Logboek aangevuld (wat moeilijk en vlot ging, reflectie). Minder bestanden: JavaScript in `index.html`, rolprofielen in `recommender.py`, tests in `test_app.py` | 2 uren |
 | 13/11/2026 | Milestone 2 indienen | demo gegeven aan de docent | 20 minuten |
 | 16/11/2026 | Start milestone 3: cloud deployment | Branch `milestone-3`. Gekozen voor Azure Container Apps (de twee containers ongewijzigd naar Azure, gratis maandelijks tegoed) met GitHub Container Registry voor de images. Azure for Students-account aangemaakt, resourcegroep `rg-football-scout` (West Europe), budget van €5 per maand met waarschuwingen bij 50, 80 en 100%. `.env` aangemaakt en `.env.example` verwijderd (feedback docent). Pipeline slaat de images op in GitHub Container Registry. Container Apps `scout-backend` en `scout-frontend` aangemaakt in Belgium Central (West Europe niet toegelaten). Beheerde identiteit `id-github-deploy` met federatieve referentie en rol Inzender, drie GitHub-secrets, deploy-job in de pipeline. Eerste automatische deploy bij de merge naar `main` geslaagd. README: publieke URL, architectuur en kosten, en het verschil tussen online en lokaal gebruiken | 4 uren en 20 minuten |
+| 26/11/2026 | Leerpad AZ-900 | De drie leertrajecten van Azure Fundamentals (AZ-900) afgerond: twaalf modules, alle toetsen geslaagd. Transcript als bewijs in het logboek | 4 uren 30 minuten |
 
 ## 4. Technische keuzes
 
@@ -194,8 +195,23 @@ rechtstreeks op bij de backend.
 
 Microsoft Certified: Azure Fundamentals (AZ-900).
 
-- Stand van zaken: _in te vullen vanwege wachten op extra info docent_
-- Bewijs: _certificaat of screenshots toevoegen_
+Volgens de docent hoeft het betalende examen niet afgelegd te worden, wel moet ik kunnen aantonen dat ik het leerpad met de meerdere modules gevolgd heb.
+
+- **Stand van zaken:** het volledige leerpad is afgerond op 26/11/2026: de
+  drie leertrajecten en hun twaalf modules, elk met de toets aan het einde
+  geslaagd. Studietijd volgens Microsoft Learn: 305 minuten.
+- **Bewijs:** mijn transcript op Microsoft Learn:
+  <https://learn.microsoft.com/nl-nl/users/chaybonverlooy-5666/transcript/7oj2ja6k1xkykpz>
+
+| Leertraject | Modules |
+|---|---|
+| Cloudconcepten beschrijven | Cloud-computing beschrijven; de voordelen van cloudservices beschrijven; typen cloudservices beschrijven |
+| Azure-architectuur en -services beschrijven | De belangrijkste architecturale onderdelen van Azure; Azure-reken- en netwerkservices; Azure-netwerkservices; Azure Storage-services; Azure-identiteit, -toegang en -beveiliging |
+| Azure-beheer en -governance beschrijven | Kostenbeheer in Azure; functies en hulpprogramma's voor governance en naleving; functies en hulpprogramma's voor het beheren en implementeren van Azure-resources; bewakingshulpprogramma's in Azure |
+
+In dit project heb ik vooral gebruikt: resourcegroepen, regio's, Container Apps
+(rekenkracht), beheerde identiteiten en rollen (identiteit en toegang), en
+kostenbeheer met een budget.
 
 ## 7. Reflectie op het leerproces
 
